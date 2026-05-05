@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Connexion admin</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="admin-box">
+    <h2>Connexion admin</h2>
+
+    {% if error %}
+    <p class="admin-error">{{ error }}</p>
+    {% endif %}
+
+    <form method="POST">
+        <input type="password" name="password" placeholder="Mot de passe admin" required>
+        <button type="submit" class="validate-btn">Se connecter</button>
+    </form>
+
+    <a href="{{ url_for('home') }}" class="admin-link">Retour au site</a>
+</div>
+
+</body>
+</html>

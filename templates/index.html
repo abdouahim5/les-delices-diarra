@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Les Délices de Diarra</title>
+    <title>{{ restaurant_name }}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
@@ -29,13 +29,8 @@
 
     <div class="hero-content">
         <span class="badge-main">Commande rapide par WhatsApp</span>
-
         <h2>Des box gourmandes<br>préparées avec soin</h2>
-
-        <p>
-            Choisissez vos produits, ajoutez-les au panier et envoyez votre commande
-            directement sur WhatsApp.
-        </p>
+        <p>Choisissez vos produits, ajoutez-les au panier et envoyez votre commande directement sur WhatsApp.</p>
 
         <div class="hero-actions">
             <a href="#menu" class="hero-btn primary">Voir le menu</a>
@@ -45,6 +40,10 @@
 </header>
 
 <form method="POST" class="page-container">
+
+    {% if error %}
+    <div class="alert-error">{{ error }}</div>
+    {% endif %}
 
     <div class="layout">
 
@@ -157,12 +156,12 @@ function updateCart() {
                 <div>
                     <strong>${name}</strong>
                     <small>${item.price} FCFA / unité</small>
-                </div>
 
-                <div class="cart-actions">
-                    <button type="button" onclick="decreaseItem('${name}')">−</button>
-                    <span>${item.qty}</span>
-                    <button type="button" onclick="increaseItem('${name}')">+</button>
+                    <div class="cart-actions">
+                        <button type="button" onclick="decreaseItem('${name}')">−</button>
+                        <span>${item.qty}</span>
+                        <button type="button" onclick="increaseItem('${name}')">+</button>
+                    </div>
                 </div>
 
                 <strong>${subtotal} FCFA</strong>
