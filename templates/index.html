@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ restaurant_name }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+<header class="hero">
+    <nav class="navbar">
+        <div class="brand">
+            <div class="logo-circle">
+                <img src="{{ url_for('static', filename='images/logo2.jpg') }}" alt="Logo">
+            </div>
+
+            <div class="brand-text">
+                <h1>Les Délices de <span>Diarra</span></h1>
+                <p>Box salé • Box sucré • Sandwich</p>
+            </div>
+        </div>
+
+        <a href="#panier" class="nav-cart">
+            🛒 Panier <span id="cart-count">0</span>
+        </a>
+    </nav>
+
+    <div class="hero-content">
+        <span class="badge-main">Commande rapide par WhatsApp</span>
+        <h2>Des box gourmandes préparées avec soin</h2>
+        <p>
+            Choisissez vos produits, ajoutez-les au panier et envoyez votre commande directement sur WhatsApp.
+        </p>
+
+        <div class="hero-actions">
+            <a href="#menu" class="hero-btn primary">Voir le menu</a>
+            <a href="#panier" class="hero-btn secondary">Voir le panier</a>
+        </div>
+    </div>
+</header>
+
+<form method="POST" class="page-container" id="order-form">
+
+    {% if error %}
+    <div class="alert-error">
+        {{ error }}
+    </div>
+    {% endif %}
+
+    <div class="layout">
+
+        <main id="menu">
+            {% for category, items in categories.items() %}
+            <section class="section">
+                <div class="section-header">
+                    <div>
+                        <span class="section-label">Menu</span>
+                        <h2>{{ category }}</h2>
+                    </div>
+                    <p>Choisissez vos produits préférés.</p>
+                </div>
+
+                <div class="menu-grid">
+                    {% for item in items %}
+                    <article class="card">
+                        <div class="image-wrapper">
+                            {% if item.badge %}
+                            <span class="product-badge">{{ item.badge }}</span>
+                            {% endif %}
+                            <img src="{{ url_for('static', filename='images/' + item.image) }}" alt="{{ item.name }}">
+                        </div>
+
+                        <div class="card-body">
+                            <h3>{{ item.name }}</h3>
+                            <p class="description">{{ item.description }}</p>
+
+                            <div class="card-bottom">
+                                <p class="price">{{ item.price }} €</p>
+
+                                <input type="hidden" name="{{ item.name }}" value="0" class="hidden-qty">
+
+                                <button type="button"
+                                        class="add-btn"
+                                        data-name="{{ item.name }}"
+                                        data-price="{{ item.price }}">
+                                    Ajouter
+                                </button>
+                            </div>
+
+                            <div class="card-qty">
+                                Quantité : <span data-product-qty="{{ item.name }}">0</span>
+                            </div>
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endfor %}
+        </main>
+
+        <aside class="cart" id="panier">
+            <div class="cart-card">
+                <div class="cart-title">
+                    <div>
+                        <span class="section-label">Commande</span>
+                        <h2>Votre panier</h2>
+                    </div>
+                    <span class="cart-pill" id="cart-pill">0 article</span>
+                </div>
+
+                <div id="cart-items">
+                    <p class="empty">Aucun article sélectionné.</p>
+                </div>
+
+                <div class="total">
+                    <span>Total</span>
+                    <strong><span id="total">0</span> €</strong>
+                </div>
+
+                <div class="customer-box">
+                    <h3>Informations de livraison</h3>
+
+                    <input type="text" name="nom" placeholder="Nom complet" required>
+                    <input type="tel" name="telephone" placeholder="Téléphone" required>
+                    <textarea name="adresse" placeholder="Adresse de livraison" required></textarea>
+                    <textarea name="note" placeholder="Note spéciale : sauce, heure, détails..."></textarea>
+                </div>
+
+                <button type="submit" class="validate-btn">
+                    Préparer ma commande
+                </button>
+
+                {% if whatsapp_link %}
+                <div class="whatsapp-box">
+                    <p>Commande prête ✅</p>
+                    <a href="{{ whatsapp_link }}" target="_blank">
+                        Envoyer sur WhatsApp
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </aside>
+
+    </div>
+</form>
+
+<a href="#panier" class="mobile-cart">
+    🛒 <span id="mobile-cart-count">0</span>
+</a>
+
+<footer class="footer">
+    <p>© 2026 {{ restaurant_name }} — Box salé, box sucré et sandwich.</p>
+</footer>
+
+<script>
+const addButtons = document.querySelectorAll(".add-btn");
+const hiddenInputs = document.querySelectorAll(".hidden-qty");
+const cartItems = document.getElementById("cart-items");
+const totalElement = document.getElementById("total");
+const cartCount = document.getElementById("cart-count");
+const mobileCartCount = document.getElementById("mobile-cart-count");
+const cartPill = document.getElementById("cart-pill");
+const productQtyElements = document.querySelectorAll("[data-product-qty]");
+
+let cart = {};
+
+function updateProductQuantities() {
+    productQtyElements.forEach(element => {
+        const name = element.dataset.productQty;
+        element.textContent = cart[name] ? cart[name].qty : 0;
+    });
+}
+
+function updateCart() {
+    let total = 0;
+    let count = 0;
+    let html = "";
+
+    Object.keys(cart).forEach(name => {
+        const item = cart[name];
+        const subtotal = item.qty * item.price;
+
+        total += subtotal;
+        count += item.qty;
+
+        html += `
+            <div class="cart-line">
+                <div class="cart-info">
+                    <strong>${name}</strong>
+                    <small>${item.price} € / unité</small>
+                </div>
+
+                <div class="cart-actions">
+                    <button type="button" onclick="decreaseItem('${name}')">−</button>
+                    <span>${item.qty}</span>
+                    <button type="button" onclick="increaseItem('${name}')">+</button>
+                </div>
+
+                <strong class="subtotal">${subtotal} €</strong>
+            </div>
+        `;
+    });
+
+    if (html === "") {
+        html = `<p class="empty">Aucun article sélectionné.</p>`;
+    }
+
+    cartItems.innerHTML = html;
+    totalElement.textContent = total;
+    cartCount.textContent = count;
+    mobileCartCount.textContent = count;
+    cartPill.textContent = count > 1 ? `${count} articles` : `${count} article`;
+
+    hiddenInputs.forEach(input => {
+        input.value = cart[input.name] ? cart[input.name].qty : 0;
+    });
+
+    updateProductQuantities();
+}
+
+addButtons.forEach(button => {
+    button.addEventListener("click", () => {
+        const name = button.dataset.name;
+        const price = parseInt(button.dataset.price);
+
+        if (!cart[name]) {
+            cart[name] = { qty: 1, price: price };
+        } else {
+            cart[name].qty += 1;
+        }
+
+        button.textContent = "Ajouté ✓";
+
+        setTimeout(() => {
+            button.textContent = "Ajouter";
+        }, 900);
+
+        updateCart();
+    });
+});
+
+function increaseItem(name) {
+    cart[name].qty += 1;
+    updateCart();
+}
+
+function decreaseItem(name) {
+    cart[name].qty -= 1;
+
+    if (cart[name].qty <= 0) {
+        delete cart[name];
+    }
+
+    updateCart();
+}
+</script>
+
+</body>
+</html>
