@@ -3,45 +3,32 @@ from flask import Flask, render_template, request, redirect, url_for, session
 from urllib.parse import quote
 from dotenv import load_dotenv
 
-# Charger les variables .env
 load_dotenv()
 
 app = Flask(__name__)
 
-# ===============================
-# 🔐 CONFIG SECURISEE (.env)
-# ===============================
-app.secret_key = os.getenv("SECRET_KEY")
+app.secret_key = os.getenv("SECRET_KEY", "cle-secrete-temporaire")
 
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
-WHATSAPP_NUMBER = os.getenv("WHATSAPP_NUMBER")
-
+RESTAURANT_NAME = "Les Délices de Diarra"
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "1234")
+WHATSAPP_NUMBER = os.getenv("WHATSAPP_NUMBER", "221771234567")
 BASE_URL = os.getenv("BASE_URL", "https://les-delices-diarra.onrender.com")
 
-# ===============================
-# 🍔 MENU PRODUITS
-# ===============================
 menu = [
-    # BOX SALE
     {"category": "Box salé", "name": "Box 7000 FCFA", "price": 7000, "image": "box_7000.jpg", "active": True},
     {"category": "Box salé", "name": "Box 8000 FCFA", "price": 8000, "image": "box_8000.jpg", "active": True},
     {"category": "Box salé", "name": "Box 10000 FCFA", "price": 10000, "image": "box_10000.jpg", "active": True},
     {"category": "Box salé", "name": "Box 12500 FCFA", "price": 12500, "image": "box_12500.jpg", "active": True},
     {"category": "Box salé", "name": "Box 13000 FCFA", "price": 13000, "image": "box_13000.jpg", "active": True},
 
-    # BOX SUCRE
     {"category": "Box sucré", "name": "Box Beignets 16000 FCFA", "price": 16000, "image": "box_beignet_16000.jpg", "active": True},
 
-    # SANDWICH
     {"category": "Sandwich", "name": "Burger", "price": 3000, "image": "burger.jpg", "active": True},
     {"category": "Sandwich", "name": "Tacos", "price": 3500, "image": "tacos.jpg", "active": True},
     {"category": "Sandwich", "name": "Kebab", "price": 3000, "image": "kebab.jpg", "active": True},
 ]
 
 
-# ===============================
-# 📦 UTILS
-# ===============================
 def get_active_categories():
     categories = {}
     for item in menu:
@@ -50,9 +37,6 @@ def get_active_categories():
     return categories
 
 
-# ===============================
-# 🏠 PAGE CLIENT
-# ===============================
 @app.route("/", methods=["GET", "POST"])
 def home():
     categories = get_active_categories()
@@ -73,7 +57,7 @@ def home():
 
             try:
                 qty = int(request.form.get(item["name"], 0))
-            except:
+            except ValueError:
                 qty = 0
 
             if qty > 0:
@@ -93,23 +77,23 @@ def home():
             error = "Veuillez remplir toutes les informations."
         else:
             commande_text = "\n\n".join([
-                f"{x['name']} x{x['qty']} = {x['subtotal']} FCFA\n"
-                f"Image: {BASE_URL}/static/images/{x['image']}"
+                f"🍴 {x['name']} x{x['qty']} = {x['subtotal']} FCFA\n"
+                f"🖼️ Image : {BASE_URL}/static/images/{x['image']}"
                 for x in order_summary
             ])
 
-            message = f"""Nouvelle commande
+            message = f"""📦 Nouvelle commande - {RESTAURANT_NAME}
 
-Nom: {nom}
-Téléphone: {telephone}
-Adresse: {adresse}
+👤 Nom : {nom}
+📞 Téléphone : {telephone}
+📍 Adresse : {adresse}
 
-Commande:
+🛒 Commande :
 {commande_text}
 
-Total: {total} FCFA
+💰 Total : {total} FCFA
 
-Note:
+📝 Note :
 {note if note else "Aucune"}
 """
 
@@ -117,19 +101,17 @@ Note:
 
     return render_template(
         "index.html",
+        restaurant_name=RESTAURANT_NAME,
         categories=categories,
         whatsapp_link=whatsapp_link,
         error=error
     )
 
 
-# ===============================
-# 🔐 ADMIN LOGIN
-# ===============================
 @app.route("/admin", methods=["GET", "POST"])
 def admin():
     if request.method == "POST":
-        password = request.form.get("password")
+        password = request.form.get("password", "")
 
         if password == ADMIN_PASSWORD:
             session["admin"] = True
@@ -140,9 +122,6 @@ def admin():
     return render_template("admin_login.html")
 
 
-# ===============================
-# ⚙️ ADMIN DASHBOARD
-# ===============================
 @app.route("/admin/dashboard", methods=["GET", "POST"])
 def admin_dashboard():
     if not session.get("admin"):
@@ -161,17 +140,11 @@ def admin_dashboard():
     return render_template("admin_dashboard.html", menu=menu)
 
 
-# ===============================
-# 🚪 LOGOUT
-# ===============================
 @app.route("/admin/logout")
 def admin_logout():
     session.pop("admin", None)
     return redirect(url_for("home"))
 
 
-# ===============================
-# 🚀 RUN
-# ===============================
 if __name__ == "__main__":
     app.run()
