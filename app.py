@@ -3,106 +3,87 @@ from urllib.parse import quote
 
 app = Flask(__name__)
 
-# 👉 Mets TON numéro WhatsApp ici (sans +)
-WHATSAPP_NUMBER = "221777849040"
+# 👉 TON NUMERO WHATSAPP (sans +)
+WHATSAPP_NUMBER = "221776526751"
 
-RESTAURANT_NAME = "Les délices de Diarra"
-
-# 👉 Produits pour composer la box
 menu = [
-    {"category": "Box salé", "name": "Mini Pizza", "price": 1.5, "image": "mini_pizza.jpg"},
-    {"category": "Box salé", "name": "Tortilla", "price": 1.5, "image": "tortilla.jpg"},
-    {"category": "Box salé", "name": "Rissole", "price": 1.2, "image": "rissole.jpg"},
-    {"category": "Box salé", "name": "Neem", "price": 1.2, "image": "neem.jpg"},
-    {"category": "Box salé", "name": "Brochette", "price": 2.0, "image": "brochette.jpg"},
-    {"category": "Box salé", "name": "Fataya", "price": 1.2, "image": "fataya.jpg"},
+    # BOX SALEES
+    {"category": "Box salé", "name": "Box 7000", "price": 7000, "image": "box_7000.jpg"},
+    {"category": "Box salé", "name": "Box 8000", "price": 8000, "image": "box_8000.jpg"},
+    {"category": "Box salé", "name": "Box 10000", "price": 10000, "image": "box_10000.jpg"},
+    {"category": "Box salé", "name": "Box 13000", "price": 13000, "image": "box_13000.jpg"},
 
-    {"category": "Box sucré", "name": "Beignets nature", "price": 1.0, "image": "beignets.jpg"},
-    {"category": "Box sucré", "name": "Beignets sucrés", "price": 1.2, "image": "beignets_sucres.jpg"},
-    {"category": "Box sucré", "name": "Beignets mix", "price": 1.5, "image": "beignets_mix.jpg"},
+    # BOX SUCREES
+    {"category": "Box sucré", "name": "Beignets 5000", "price": 5000, "image": "box_beignet_16000.jpg"},
+    {"category": "Box sucré", "name": "Donuts 7000", "price": 7000, "image": "box_12500.jpg"},
 
-    {"category": "Sandwich", "name": "Burger", "price": 8, "image": "burger.jpg"},
-    {"category": "Sandwich", "name": "Tacos", "price": 9, "image": "tacos.jpg"},
-    {"category": "Sandwich", "name": "Kebab", "price": 8, "image": "kebab.jpg"},
+    # SANDWICH
+    {"category": "Sandwich", "name": "Burger", "price": 3000, "image": "burger.jpg"},
+    {"category": "Sandwich", "name": "Tacos", "price": 3500, "image": "tacos.jpg"},
+    {"category": "Sandwich", "name": "Kebab", "price": 3000, "image": "kebab.jpg"},
 ]
-
-
-# 👉 Organiser les catégories
-def build_categories():
-    categories = {}
-    for item in menu:
-        categories.setdefault(item["category"], []).append(item)
-    return categories
 
 
 @app.route("/", methods=["GET", "POST"])
 def home():
-    categories = build_categories()
+    categories = {}
+    for item in menu:
+        categories.setdefault(item["category"], []).append(item)
+
     whatsapp_link = None
     order_summary = []
     total = 0
-    error = None
 
     if request.method == "POST":
-        nom = request.form.get("nom", "").strip()
-        telephone = request.form.get("telephone", "").strip()
-        adresse = request.form.get("adresse", "").strip()
-        note = request.form.get("note", "").strip()
+        nom = request.form.get("nom")
+        telephone = request.form.get("telephone")
+        adresse = request.form.get("adresse")
 
-        # 👉 Lire les quantités
         for item in menu:
-            try:
-                qty = int(request.form.get(item["name"], 0))
-            except:
-                qty = 0
-
+            qty = int(request.form.get(item["name"], 0))
             if qty > 0:
                 subtotal = qty * item["price"]
+                total += subtotal
+
                 order_summary.append({
                     "name": item["name"],
                     "qty": qty,
-                    "subtotal": subtotal
+                    "subtotal": subtotal,
+                    "image": item["image"]
                 })
-                total += subtotal
 
-        # 👉 Vérifications
-        if not order_summary:
-            error = "Veuillez choisir au moins un produit."
-        elif not nom or not telephone or not adresse:
-            error = "Veuillez remplir toutes les informations."
-        else:
-            # 👉 Message WhatsApp
-            commande_text = "\n".join(
-                f"🍴 {item['name']} x{item['qty']} = {item['subtotal']} €"
-                for item in order_summary
-            )
+        commande = "\n".join([
+            f"{x['name']} x{x['qty']} = {x['subtotal']} FCFA"
+            for x in order_summary
+        ])
 
-            message = f"""📦 Nouvelle commande - {RESTAURANT_NAME}
+        images = "\n".join([
+            f"https://les-delices-diarra.onrender.com/static/images/{x['image']}"
+            for x in order_summary
+        ])
 
-👤 Nom : {nom}
-📞 Téléphone : {telephone}
-📍 Adresse : {adresse}
+        message = f"""
+Nouvelle commande
 
-🛒 Commande :
-{commande_text}
+Nom: {nom}
+Téléphone: {telephone}
+Adresse: {adresse}
 
-💰 Total : {total} €
+Commande:
+{commande}
 
-📝 Note :
-{note if note else "Aucune"}
+Total: {total} FCFA
+
+Images:
+{images}
 """
 
-            whatsapp_link = f"https://wa.me/{WHATSAPP_NUMBER}?text={quote(message)}"
+        whatsapp_link = f"https://wa.me/{WHATSAPP_NUMBER}?text={quote(message)}"
 
-    return render_template(
-        "index.html",
-        restaurant_name=RESTAURANT_NAME,
-        categories=categories,
-        whatsapp_link=whatsapp_link,
-        error=error
-    )
+    return render_template("index.html",
+                           categories=categories,
+                           whatsapp_link=whatsapp_link)
 
 
-# 👉 IMPORTANT POUR RENDER
 if __name__ == "__main__":
-    app.run()
+    app.run(debug=True)
