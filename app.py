@@ -1,17 +1,18 @@
 import os
 from flask import Flask, render_template, request, redirect, url_for, session
 from urllib.parse import quote
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(dotenv_path=Path(__file__).resolve().with_name(".env"), override=False)
 
 app = Flask(__name__)
 
 app.secret_key = os.getenv("SECRET_KEY", "cle-secrete-temporaire")
 
 RESTAURANT_NAME = "Les Délices de Diarra"
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD","1234")
-WHATSAPP_NUMBER = os.getenv("WHATSAPP_NUMBER","221776526751")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
+WHATSAPP_NUMBER = os.getenv("WHATSAPP_NUMBER")
 BASE_URL = os.getenv("BASE_URL", "https://les-delices-diarra.onrender.com")
 
 menu = [
