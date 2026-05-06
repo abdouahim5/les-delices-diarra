@@ -1,48 +1,172 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <title>Admin - Produits</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
+{% extends "admin_base.html" %}
 
-<div class="admin-container">
-    <div class="admin-header">
-        <h1>Gestion des produits</h1>
-        <div>
-            <a href="{{ url_for('home') }}">Voir le site</a>
-            <a href="{{ url_for('admin_logout') }}">Déconnexion</a>
+{% block content %}
+<div class="admin-kpiGrid">
+    <div class="admin-kpi admin-kpi--orders">
+        <div class="admin-kpi__icon"><i class="fa-solid fa-receipt"></i></div>
+        <div class="admin-kpi__body">
+            <div class="admin-kpi__label">Commandes</div>
+            <div class="admin-kpi__value">{{ stats.orders_total }}</div>
+            <div class="admin-kpi__meta">
+                <span class="admin-dotStatus is-new"></span> {{ stats.orders_new }}
+                <span class="admin-dot">•</span>
+                <span class="admin-dotStatus is-confirmed"></span> {{ stats.orders_confirmed }}
+                <span class="admin-dot">•</span>
+                <span class="admin-dotStatus is-preparing"></span> {{ stats.orders_preparing }}
+                <span class="admin-dot">•</span>
+                <span class="admin-dotStatus is-delivering"></span> {{ stats.orders_delivering }}
+            </div>
+        </div>
+        <div class="admin-kpi__action">
+            <a class="admin-btn" href="{{ url_for('admin_orders') }}">Voir</a>
         </div>
     </div>
 
-    {% for item in menu %}
-    <div class="admin-product">
-        <img src="{{ url_for('static', filename='images/' + item.image) }}" alt="{{ item.name }}">
-
-        <div>
-            <h3>{{ item.name }}</h3>
-            <p>{{ item.category }} — {{ item.price }} FCFA</p>
-
-            {% if item.active %}
-            <strong class="active">Actif</strong>
-            {% else %}
-            <strong class="inactive">Désactivé</strong>
-            {% endif %}
+    <div class="admin-kpi admin-kpi--clients">
+        <div class="admin-kpi__icon"><i class="fa-solid fa-user-group"></i></div>
+        <div class="admin-kpi__body">
+            <div class="admin-kpi__label">Clients</div>
+            <div class="admin-kpi__value">{{ stats.clients_total }}</div>
+            <div class="admin-kpi__meta">Base clients</div>
         </div>
-
-        <form method="POST">
-            <input type="hidden" name="product_name" value="{{ item.name }}">
-
-            {% if item.active %}
-            <button type="submit" class="disable-btn">Désactiver</button>
-            {% else %}
-            <button type="submit" class="enable-btn">Activer</button>
-            {% endif %}
-        </form>
+        <div class="admin-kpi__action">
+            <a class="admin-btn" href="{{ url_for('admin_clients') }}">Gérer</a>
+        </div>
     </div>
-    {% endfor %}
+
+    <div class="admin-kpi admin-kpi--products">
+        <div class="admin-kpi__icon"><i class="fa-solid fa-bag-shopping"></i></div>
+        <div class="admin-kpi__body">
+            <div class="admin-kpi__label">Produits</div>
+            <div class="admin-kpi__value">{{ stats.products_total }}</div>
+            <div class="admin-kpi__meta">
+                <span class="admin-dotStatus is-delivered"></span> {{ stats.products_active }} actifs
+                <span class="admin-dot">•</span>
+                <span class="admin-dotStatus is-cancelled"></span> {{ stats.products_inactive }} désactivés
+            </div>
+        </div>
+        <div class="admin-kpi__action">
+            <a class="admin-btn" href="{{ url_for('admin_products') }}">Gérer</a>
+        </div>
+    </div>
+
+    <div class="admin-kpi admin-kpi--categories">
+        <div class="admin-kpi__icon"><i class="fa-solid fa-tags"></i></div>
+        <div class="admin-kpi__body">
+            <div class="admin-kpi__label">Catégories</div>
+            <div class="admin-kpi__value">{{ stats.categories_total }}</div>
+            <div class="admin-kpi__meta">Organisation du menu</div>
+        </div>
+        <div class="admin-kpi__action">
+            <a class="admin-btn" href="{{ url_for('admin_categories') }}">Gérer</a>
+        </div>
+    </div>
 </div>
 
-</body>
-</html>
+<div class="admin-dashGrid">
+    <div class="admin-card">
+        <div class="admin-card__head">
+            <div>
+                <h2>Aperçu statuts</h2>
+                <p>Répartition des commandes (live).</p>
+            </div>
+        </div>
+        <div class="admin-dashBars">
+            <div class="admin-dashBar">
+                <div class="admin-dashBar__label"><span class="admin-dotStatus is-new"></span> Nouvelles</div>
+                <div class="admin-dashBar__value">{{ stats.orders_new }}</div>
+            </div>
+            <div class="admin-dashBar">
+                <div class="admin-dashBar__label"><span class="admin-dotStatus is-confirmed"></span> Confirmées</div>
+                <div class="admin-dashBar__value">{{ stats.orders_confirmed }}</div>
+            </div>
+            <div class="admin-dashBar">
+                <div class="admin-dashBar__label"><span class="admin-dotStatus is-preparing"></span> Préparation</div>
+                <div class="admin-dashBar__value">{{ stats.orders_preparing }}</div>
+            </div>
+            <div class="admin-dashBar">
+                <div class="admin-dashBar__label"><span class="admin-dotStatus is-delivering"></span> Livraison</div>
+                <div class="admin-dashBar__value">{{ stats.orders_delivering }}</div>
+            </div>
+            <div class="admin-dashBar">
+                <div class="admin-dashBar__label"><span class="admin-dotStatus is-delivered"></span> Livrées</div>
+                <div class="admin-dashBar__value">{{ stats.orders_delivered }}</div>
+            </div>
+            <div class="admin-dashBar">
+                <div class="admin-dashBar__label"><span class="admin-dotStatus is-cancelled"></span> Annulées</div>
+                <div class="admin-dashBar__value">{{ stats.orders_cancelled }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="admin-card">
+        <div class="admin-card__head">
+            <div>
+                <h2>Chiffre d’affaires (livrées)</h2>
+                <p>Total sur les commandes livrées.</p>
+            </div>
+        </div>
+        <div class="admin-dashRevenue">
+            <div class="admin-dashRevenue__big">{{ stats.revenue_delivered }} FCFA</div>
+            <div class="admin-muted">Astuce: utilise les statuts pour suivre ton flux de vente.</div>
+            <div style="margin-top:12px;">
+                <a class="admin-primaryBtn" href="{{ url_for('admin_order_new') }}" data-modal-open data-modal-title="Nouvelle commande">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>Créer une commande</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if recent_orders and recent_orders|length > 0 %}
+<div class="admin-card" style="margin-top:14px;">
+    <div class="admin-card__head">
+        <div>
+            <h2>Dernières commandes</h2>
+            <p>Accès rapide.</p>
+        </div>
+    </div>
+    <div class="admin-tableWrap">
+        <table class="admin-table" style="min-width: 0;">
+            <thead>
+            <tr>
+                <th>Commande</th>
+                <th>Client</th>
+                <th>Total</th>
+                <th>Statut</th>
+                <th class="right">Voir</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for o in recent_orders %}
+            <tr>
+                <td><strong>{{ o.public_id if o.public_id else ("#" ~ o.id) }}</strong></td>
+                <td>{{ o.customer_name }}</td>
+                <td><span class="admin-pill">{{ o.total }} FCFA</span></td>
+                <td>
+                    <div class="admin-statusCell">
+                        <span class="admin-dotStatus is-{{ o.status }}"></span>
+                        <span class="admin-statusText">
+                            {% if o.status == 'new' %}Nouvelle{% endif %}
+                            {% if o.status == 'confirmed' %}Confirmée{% endif %}
+                            {% if o.status == 'preparing' %}Préparation{% endif %}
+                            {% if o.status == 'delivering' %}Livraison{% endif %}
+                            {% if o.status == 'delivered' %}Livrée{% endif %}
+                            {% if o.status == 'cancelled' %}Annulée{% endif %}
+                        </span>
+                    </div>
+                </td>
+                <td class="right">
+                    <a class="admin-iconBtn" href="{{ url_for('admin_order_view', order_id=o.id) }}" data-modal-open data-modal-title="Commande {{ o.public_id if o.public_id else ('#' ~ o.id) }}">
+                        <i class="fa-regular fa-eye"></i>
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

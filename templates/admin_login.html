@@ -3,23 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <title>Connexion admin</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='admin-crud-v1') }}">
 </head>
 <body>
 
-<div class="admin-box">
-    <h2>Connexion admin</h2>
+<div class="admin-auth">
+    <div class="admin-auth__card">
+        <div class="admin-auth__brand">
+            <div class="admin-brand__logo">
+                <img src="{{ url_for('static', filename='images/logo2.jpg') }}" alt="Logo">
+            </div>
+            <div class="admin-auth__brandText">
+                <strong>Administration</strong>
+                <span>Les Délices de Diarra</span>
+            </div>
+        </div>
 
-    {% if error %}
-    <p class="admin-error">{{ error }}</p>
-    {% endif %}
+        <h2 class="admin-auth__title">Connexion</h2>
 
-    <form method="POST">
-        <input type="password" name="password" placeholder="Mot de passe admin" required>
-        <button type="submit" class="validate-btn">Se connecter</button>
-    </form>
+        {% if error %}
+        <p class="admin-error">{{ error }}</p>
+        {% endif %}
 
-    <a href="{{ url_for('home') }}" class="admin-link">Retour au site</a>
+        <form method="POST" class="admin-form">
+            <label class="admin-label">Mot de passe</label>
+            <input type="password" name="password" placeholder="••••••••" required>
+            <button type="submit" class="validate-btn">Se connecter</button>
+        </form>
+
+        <a href="{{ url_for('home') }}" class="admin-link">Retour au site</a>
+    </div>
 </div>
 
 </body>

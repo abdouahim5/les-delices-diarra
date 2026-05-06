@@ -1,0 +1,27 @@
+{% if error %}
+<div class="admin-alert admin-alert--error">{{ error }}</div>
+{% endif %}
+
+<form method="POST"
+      action="{% if client %}{{ url_for('admin_client_edit', client_id=client.id) }}{% else %}{{ url_for('admin_client_new') }}{% endif %}"
+      class="admin-form admin-form--modal">
+    <div class="admin-form__row">
+        <div>
+            <label class="admin-label">Nom complet</label>
+            <input type="text" name="full_name" value="{{ client.full_name if client else '' }}" required>
+        </div>
+        <div>
+            <label class="admin-label">Téléphone</label>
+            <input type="text" name="phone" value="{{ client.phone if client else '' }}" required>
+        </div>
+    </div>
+    <div>
+        <label class="admin-label">Adresse (optionnel)</label>
+        <textarea name="address">{{ client.address if client else '' }}</textarea>
+    </div>
+    <div class="admin-actions">
+        <button type="submit" class="admin-btn admin-btn--ok">Enregistrer</button>
+        <a class="admin-btn" href="{{ url_for('admin_clients') }}">Retour</a>
+    </div>
+</form>
+

@@ -1,0 +1,94 @@
+{
+  "products": [
+    {
+      "id": "box-7000",
+      "category": "Box salé",
+      "name": "Box 7000 FCFA",
+      "description": "",
+      "price": 7000,
+      "image": "box_7000.jpg",
+      "active": true
+    },
+    {
+      "id": "box-8000",
+      "category": "Box salé",
+      "name": "Box 8000 FCFA",
+      "description": "",
+      "price": 8000,
+      "image": "box_8000.jpg",
+      "active": true
+    },
+    {
+      "id": "box-10000",
+      "category": "Box salé",
+      "name": "Box 10000 FCFA",
+      "description": "",
+      "price": 10000,
+      "image": "box_10000.jpg",
+      "active": true
+    },
+    {
+      "id": "box-12500",
+      "category": "Box salé",
+      "name": "Box 12500 FCFA",
+      "description": "",
+      "price": 12500,
+      "image": "box_12500.jpg",
+      "active": true
+    },
+    {
+      "id": "box-13000",
+      "category": "Box salé",
+      "name": "Box 13000 FCFA",
+      "description": "",
+      "price": 13000,
+      "image": "box_13000.jpg",
+      "active": true
+    },
+    {
+      "id": "box-beignets-16000",
+      "category": "Box sucré",
+      "name": "Box Beignets 16000 FCFA",
+      "description": "",
+      "price": 16000,
+      "image": "box_beignet_16000.jpg",
+      "active": true
+    },
+    {
+      "id": "burger",
+      "category": "Sandwich",
+      "name": "Burger",
+      "description": "",
+      "price": 3000,
+      "image": "burger.jpg",
+      "active": true
+    },
+    {
+      "id": "tacos",
+      "category": "Sandwich",
+      "name": "Tacos",
+      "description": "",
+      "price": 3500,
+      "image": "tacos.jpg",
+      "active": true
+    },
+    {
+      "id": "kebab",
+      "category": "Sandwich",
+      "name": "Kebab",
+      "description": "",
+      "price": 3000,
+      "image": "kebab.jpg",
+      "active": true
+    },
+    {
+      "id": "plat",
+      "category": "Salé",
+      "name": "plat",
+      "description": "atiéké poulet avec marinate",
+      "price": 1200,
+      "image": "uploads/plat.jpg",
+      "active": true
+    }
+  ]
+}

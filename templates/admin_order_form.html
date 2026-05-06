@@ -1,0 +1,102 @@
+{% extends "admin_base.html" %}
+
+{% block content %}
+{% if error %}
+<div class="admin-alert admin-alert--error">{{ error }}</div>
+{% endif %}
+
+<div class="admin-card">
+    <div class="admin-card__head">
+        <div>
+            <h2>Nouvelle commande</h2>
+            <p>Création manuelle (client + total + statut).</p>
+        </div>
+    </div>
+
+    <form method="POST" action="{{ url_for('admin_order_new') }}" class="admin-form">
+        <div>
+            <label class="admin-label">Client (sélection)</label>
+            <select name="client_id" class="admin-select">
+                <option value="">Sélectionner…</option>
+                {% for c in clients %}
+                <option value="{{ c.id }}">{{ c.full_name }} • {{ c.phone }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div>
+            <label class="admin-label">Description (optionnel)</label>
+            <textarea name="note" placeholder="Infos livraison, préférences, etc."></textarea>
+        </div>
+
+        <div>
+            <label class="admin-label">Adresse de livraison</label>
+            <textarea name="adresse" placeholder="Adresse de livraison" required></textarea>
+        </div>
+
+        <div class="admin-card" style="margin: 4px 0 0;">
+            <div class="admin-card__head">
+                <div>
+                    <h2>Produits</h2>
+                    <p>Ajoute des lignes, quantité et PU auto.</p>
+                </div>
+            </div>
+            <div class="admin-tableWrap">
+                <table class="admin-table" style="min-width: 760px;">
+                    <thead>
+                    <tr>
+                        <th>Produit</th>
+                        <th>PU</th>
+                        <th>Qté</th>
+                        <th>Sous-total</th>
+                        <th class="right"></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr class="admin-emptyRowJs">
+                        <td colspan="5">
+                            <div class="admin-emptyRow">Aucun produit ajouté.</div>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="admin-actions" style="padding: 0 14px 14px;">
+                <button class="admin-btn" type="button" id="add-item-btn">
+                    <i class="fa-solid fa-plus"></i> Ajouter un produit
+                </button>
+            </div>
+        </div>
+
+        <div class="admin-orderTotal">
+            <div class="admin-orderTotal__box">
+                <span class="admin-muted">Total</span>
+                <strong id="order-total">0 FCFA</strong>
+            </div>
+        </div>
+
+        <div class="admin-form__row">
+            <div>
+                <label class="admin-label">Statut</label>
+                <select name="status" class="admin-select">
+                    <option value="new">Nouvelle</option>
+                    <option value="confirmed">Confirmée</option>
+                    <option value="preparing">Préparation</option>
+                    <option value="delivering">Livraison</option>
+                    <option value="delivered">Livrée</option>
+                    <option value="cancelled">Annulée</option>
+                </select>
+            </div>
+            <div></div>
+        </div>
+
+        <div class="admin-actions">
+            <button type="submit" class="admin-btn admin-btn--ok">Créer</button>
+            <a class="admin-btn" href="{{ url_for('admin_orders') }}">Retour</a>
+        </div>
+    </form>
+</div>
+
+<script type="application/json" id="order-products-json">{{ products|tojson }}</script>
+{% endblock %}
+

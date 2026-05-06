@@ -1,0 +1,20 @@
+services:
+  db:
+    image: postgres:16
+    container_name: les_delices_db
+    environment:
+      POSTGRES_DB: les_delices
+      POSTGRES_USER: les_delices
+      POSTGRES_PASSWORD: les_delices
+    ports:
+      - "5432:5432"
+    volumes:
+      - les_delices_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U les_delices -d les_delices"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  les_delices_pgdata:

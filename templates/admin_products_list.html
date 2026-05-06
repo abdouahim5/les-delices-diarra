@@ -1,0 +1,145 @@
+{% extends "admin_base.html" %}
+
+{% block content %}
+{% if auto_show_all %}
+<div class="admin-alert">
+    Aucun produit <strong>actif</strong> trouvé — on affiche automatiquement <strong>tous les états</strong>.
+    <a class="admin-linkInline" href="{{ url_for('admin_products', status='active') }}">Voir actifs</a>
+</div>
+{% endif %}
+
+<div class="admin-filters">
+    <form method="GET" class="admin-filters__row">
+        <div class="admin-filters__left">
+            <div class="admin-field">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" name="q" value="{{ q }}" placeholder="Rechercher…">
+            </div>
+
+            <input type="hidden" name="category" value="{{ selected_category }}">
+            <input type="hidden" name="status" value="{{ selected_status }}">
+
+            <button class="admin-btn" type="submit"><i class="fa-solid fa-filter"></i> Filtrer</button>
+            <a class="admin-btn" href="{{ url_for('admin_products') }}"><i class="fa-solid fa-rotate-left"></i> Reset</a>
+        </div>
+
+        <a class="admin-primaryBtn admin-filters__primary" href="{{ url_for('admin_product_new') }}" data-modal-open data-modal-title="Nouveau produit">
+            <i class="fa-solid fa-plus"></i>
+            <span>Nouveau produit</span>
+        </a>
+    </form>
+
+    <div class="admin-chipRow">
+        <div class="admin-chipGroup" aria-label="Filtre statut">
+            <a class="admin-chip {% if selected_status == '' %}is-active{% endif %}"
+               href="{{ url_for('admin_products', q=q, category=selected_category, status='', page=1, per_page=per_page) }}">Tous</a>
+            <a class="admin-chip {% if selected_status == 'active' %}is-active{% endif %}"
+               href="{{ url_for('admin_products', q=q, category=selected_category, status='active', page=1, per_page=per_page) }}">Actifs</a>
+            <a class="admin-chip {% if selected_status == 'inactive' %}is-active{% endif %}"
+               href="{{ url_for('admin_products', q=q, category=selected_category, status='inactive', page=1, per_page=per_page) }}">Désactivés</a>
+        </div>
+
+        <div class="admin-chipScroller" aria-label="Filtre catégorie">
+            <a class="admin-chip {% if selected_category == '' %}is-active{% endif %}"
+               href="{{ url_for('admin_products', q=q, category='', status=selected_status, page=1, per_page=per_page) }}">Toutes catégories</a>
+            {% for c in categories %}
+            <a class="admin-chip {% if c == selected_category %}is-active{% endif %}"
+               href="{{ url_for('admin_products', q=q, category=c, status=selected_status, page=1, per_page=per_page) }}">{{ c }}</a>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="admin-card">
+    <div class="admin-tableWrap">
+        <table class="admin-table">
+            <thead>
+            <tr>
+                <th>Produit</th>
+                <th>Catégorie</th>
+                <th>Prix</th>
+                <th>Statut</th>
+                <th class="right">Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% if products|length == 0 %}
+            <tr>
+                <td colspan="5">
+                    <div class="admin-emptyRow">
+                        Aucun produit pour ces filtres.
+                        <a class="admin-linkInline" href="{{ url_for('admin_products', status='') }}">Afficher tous</a>
+                    </div>
+                </td>
+            </tr>
+            {% endif %}
+            {% for p in products %}
+            <tr>
+                <td>
+                    <div class="admin-prod">
+                        <img class="admin-prod__img"
+                             src="{{ url_for('static', filename='images/' + (p.image or 'placeholder.svg')) }}"
+                             alt="{{ p.name }}"
+                             loading="lazy"
+                             onerror="this.onerror=null;this.src='{{ url_for('static', filename='images/placeholder.svg') }}'">
+                        <div class="admin-prod__text">
+                            <strong>{{ p.name }}</strong>
+                            {% if p.description %}
+                            <span class="admin-muted">{{ p.description }}</span>
+                            {% endif %}
+                            <span class="admin-muted">ID: {{ p.id }}</span>
+                        </div>
+                    </div>
+                </td>
+                <td>{{ p.category }}</td>
+                <td><span class="admin-pill">{{ p.price }} FCFA</span></td>
+                <td>
+                    <form method="POST" action="{{ url_for('admin_product_toggle', product_id=p.id) }}" class="admin-switchForm">
+                        <label class="admin-toggle" title="{% if p.active %}Désactiver{% else %}Activer{% endif %}">
+                            <input type="checkbox" {% if p.active %}checked{% endif %} onchange="this.form.submit()">
+                            <span class="admin-toggle__track">
+                                <span class="admin-toggle__thumb"></span>
+                            </span>
+                        </label>
+                    </form>
+                </td>
+                <td class="right">
+                    <div class="admin-actions">
+                        <a class="admin-iconBtn" href="{{ url_for('admin_product_view', product_id=p.id) }}" data-modal-open data-modal-title="Produit">
+                            <i class="fa-regular fa-eye"></i>
+                        </a>
+                        <a class="admin-iconBtn" href="{{ url_for('admin_product_edit', product_id=p.id) }}" data-modal-open data-modal-title="Modifier">
+                            <i class="fa-regular fa-pen-to-square"></i>
+                        </a>
+                        <form method="POST" action="{{ url_for('admin_product_delete', product_id=p.id) }}" onsubmit="return confirm('Supprimer ce produit ?');">
+                            <button class="admin-iconBtn is-danger" type="submit" aria-label="Supprimer">
+                                <i class="fa-regular fa-trash-can"></i>
+                            </button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="admin-pagination">
+    <div class="admin-muted">
+        Total: <strong>{{ total }}</strong> • Page <strong>{{ page }}</strong> / <strong>{{ total_pages }}</strong>
+    </div>
+
+    <div class="admin-pageBtns">
+        <a class="admin-btn {% if page <= 1 %}is-disabled{% endif %}"
+           href="{{ url_for('admin_products', q=q, category=selected_category, status=selected_status, page=1, per_page=per_page) }}">«</a>
+        <a class="admin-btn {% if page <= 1 %}is-disabled{% endif %}"
+           href="{{ url_for('admin_products', q=q, category=selected_category, status=selected_status, page=page-1, per_page=per_page) }}">Préc</a>
+        <a class="admin-btn {% if page >= total_pages %}is-disabled{% endif %}"
+           href="{{ url_for('admin_products', q=q, category=selected_category, status=selected_status, page=page+1, per_page=per_page) }}">Suiv</a>
+        <a class="admin-btn {% if page >= total_pages %}is-disabled{% endif %}"
+           href="{{ url_for('admin_products', q=q, category=selected_category, status=selected_status, page=total_pages, per_page=per_page) }}">»</a>
+    </div>
+</div>
+{% endblock %}
+

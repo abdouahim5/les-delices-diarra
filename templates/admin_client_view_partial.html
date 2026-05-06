@@ -1,0 +1,86 @@
+<div class="admin-view">
+    <div class="admin-view__top">
+        <div class="admin-view__img" style="display:grid;place-items:center;">
+            <i class="fa-regular fa-user" style="font-size:32px;color:rgba(71,85,105,0.9);"></i>
+        </div>
+        <div>
+            <h2 class="admin-view__title">{{ client.full_name }}</h2>
+            <div class="admin-view__meta">
+                <span class="admin-pill">{{ client.phone }}</span>
+                <span class="admin-muted">ID: {{ client.id }}</span>
+            </div>
+        </div>
+    </div>
+
+    {% if client.address %}
+    <div class="admin-view__desc">{{ client.address }}</div>
+    {% endif %}
+
+    <div class="admin-card" style="margin-top:12px;">
+        <div class="admin-card__head">
+            <div>
+                <h2>Commandes</h2>
+                <p>{{ orders_count }} commande(s) • cliquez pour ouvrir</p>
+            </div>
+        </div>
+        <div class="admin-tableWrap">
+            <table class="admin-table" style="min-width: 0;">
+                <thead>
+                <tr>
+                    <th>Commande</th>
+                    <th>Date</th>
+                    <th>Total</th>
+                    <th>Statut</th>
+                    <th class="right">Voir</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% if orders|length == 0 %}
+                <tr>
+                    <td colspan="5">
+                        <div class="admin-emptyRow">Aucune commande pour ce client.</div>
+                    </td>
+                </tr>
+                {% endif %}
+                {% for o in orders %}
+                <tr>
+                    <td><strong>{{ o.public_id if o.public_id else ("#" ~ o.id) }}</strong></td>
+                    <td class="admin-muted">{{ o.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td><span class="admin-pill">{{ o.total }} FCFA</span></td>
+                    <td>
+                        <div class="admin-statusCell">
+                            <span class="admin-dotStatus is-{{ o.status }}"></span>
+                            <span class="admin-statusText">
+                                {% if o.status == 'new' %}Nouvelle{% endif %}
+                                {% if o.status == 'confirmed' %}Confirmée{% endif %}
+                                {% if o.status == 'preparing' %}Préparation{% endif %}
+                                {% if o.status == 'delivering' %}Livraison{% endif %}
+                                {% if o.status == 'delivered' %}Livrée{% endif %}
+                                {% if o.status == 'cancelled' %}Annulée{% endif %}
+                            </span>
+                        </div>
+                    </td>
+                    <td class="right">
+                        <a class="admin-iconBtn" href="{{ url_for('admin_order_view', order_id=o.id) }}" data-modal-open data-modal-title="Commande {{ o.public_id if o.public_id else ('#' ~ o.id) }}">
+                            <i class="fa-regular fa-eye"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="admin-actions">
+        <a class="admin-btn" href="{{ url_for('admin_client_edit', client_id=client.id) }}" data-modal-open data-modal-title="Modifier">
+            <i class="fa-regular fa-pen-to-square"></i> Modifier
+        </a>
+        <form method="POST" action="{{ url_for('admin_client_delete', client_id=client.id) }}" onsubmit="return confirm('Supprimer ce client ?');">
+            <button class="admin-btn admin-btn--danger" type="submit">
+                <i class="fa-regular fa-trash-can"></i> Supprimer
+            </button>
+        </form>
+    </div>
+</div>
+

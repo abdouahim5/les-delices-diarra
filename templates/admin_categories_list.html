@@ -1,0 +1,56 @@
+{% extends "admin_base.html" %}
+
+{% block content %}
+{% if error %}
+<div class="admin-alert admin-alert--error">{{ error }}</div>
+{% endif %}
+
+<div class="admin-filters">
+    <form method="POST" class="admin-filters__row">
+        <div class="admin-filters__left">
+            <div class="admin-field">
+                <i class="fa-solid fa-tag"></i>
+                <input type="text" name="name" value="{{ name }}" placeholder="Nouvelle catégorie…">
+            </div>
+            <button class="admin-btn" type="submit"><i class="fa-solid fa-plus"></i> Ajouter</button>
+        </div>
+    </form>
+</div>
+
+<div class="admin-card">
+    <div class="admin-tableWrap">
+        <table class="admin-table" style="min-width: 560px;">
+            <thead>
+            <tr>
+                <th>Catégorie</th>
+                <th class="right">Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% if categories|length == 0 %}
+            <tr>
+                <td colspan="2">
+                    <div class="admin-emptyRow">Aucune catégorie.</div>
+                </td>
+            </tr>
+            {% endif %}
+            {% for c in categories %}
+            <tr>
+                <td><strong>{{ c.name }}</strong></td>
+                <td class="right">
+                    <div class="admin-actions">
+                        <form method="POST" action="{{ url_for('admin_category_delete', category_id=c.id) }}" onsubmit="return confirm('Supprimer cette catégorie ?');">
+                            <button class="admin-iconBtn is-danger" type="submit" aria-label="Supprimer">
+                                <i class="fa-regular fa-trash-can"></i>
+                            </button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+

@@ -1,0 +1,145 @@
+{% extends "admin_base.html" %}
+
+{% block content %}
+<div class="admin-filters">
+    <form method="GET" class="admin-filters__row">
+        <div class="admin-filters__left">
+            <div class="admin-field">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" name="q" value="{{ q }}" placeholder="Rechercher (nom, téléphone, adresse)…">
+            </div>
+            <button class="admin-btn" type="submit"><i class="fa-solid fa-filter"></i> Filtrer</button>
+            <a class="admin-btn" href="{{ url_for('admin_orders') }}"><i class="fa-solid fa-rotate-left"></i> Reset</a>
+        </div>
+
+        <a class="admin-primaryBtn admin-filters__primary" href="{{ url_for('admin_order_new') }}" data-modal-open data-modal-title="Nouvelle commande">
+            <i class="fa-solid fa-plus"></i>
+            <span>Nouvelle commande</span>
+        </a>
+    </form>
+
+    <div class="admin-chipRow">
+        <div class="admin-chipGroup" aria-label="Filtre statut">
+            <a class="admin-chip {% if selected_status == '' %}is-active{% endif %}"
+               href="{{ url_for('admin_orders', q=q, status='', page=1, per_page=per_page) }}">Toutes</a>
+            <a class="admin-chip {% if selected_status == 'new' %}is-active{% endif %}"
+               href="{{ url_for('admin_orders', q=q, status='new', page=1, per_page=per_page) }}">Nouvelles</a>
+            <a class="admin-chip {% if selected_status == 'confirmed' %}is-active{% endif %}"
+               href="{{ url_for('admin_orders', q=q, status='confirmed', page=1, per_page=per_page) }}">Confirmées</a>
+            <a class="admin-chip {% if selected_status == 'preparing' %}is-active{% endif %}"
+               href="{{ url_for('admin_orders', q=q, status='preparing', page=1, per_page=per_page) }}">Préparation</a>
+            <a class="admin-chip {% if selected_status == 'delivering' %}is-active{% endif %}"
+               href="{{ url_for('admin_orders', q=q, status='delivering', page=1, per_page=per_page) }}">Livraison</a>
+            <a class="admin-chip {% if selected_status == 'delivered' %}is-active{% endif %}"
+               href="{{ url_for('admin_orders', q=q, status='delivered', page=1, per_page=per_page) }}">Livrées</a>
+            <a class="admin-chip {% if selected_status == 'cancelled' %}is-active{% endif %}"
+               href="{{ url_for('admin_orders', q=q, status='cancelled', page=1, per_page=per_page) }}">Annulées</a>
+        </div>
+    </div>
+
+</div>
+
+<div class="admin-card">
+    <div class="admin-tableWrap">
+        <table class="admin-table admin-table--orders">
+            <thead>
+            <tr>
+                <th>Commande</th>
+                <th>Client</th>
+                <th>Total</th>
+                <th>Statut</th>
+                <th class="right">Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% if orders|length == 0 %}
+            <tr>
+                <td colspan="5">
+                    <div class="admin-emptyRow">Aucune commande.</div>
+                </td>
+            </tr>
+            {% endif %}
+            {% for o in orders %}
+            <tr>
+                <td>
+                    <div class="admin-prod">
+                        <div class="admin-prod__img" style="display:grid;place-items:center;">
+                            <i class="fa-solid fa-bag-shopping" style="color:rgba(71,85,105,0.9);"></i>
+                        </div>
+                        <div class="admin-prod__text">
+                            <strong>{{ o.public_id if o.public_id else ("#" ~ o.id) }}</strong>
+                            <span class="admin-muted">{{ o.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <strong>{{ o.customer_name }}</strong>
+                    <div class="admin-muted">{{ o.customer_phone }}</div>
+                </td>
+                <td><span class="admin-pill">{{ o.total }} FCFA</span></td>
+                <td>
+                    <div class="admin-statusCell">
+                        <span class="admin-dotStatus is-{{ o.status }}"></span>
+                        <span class="admin-statusText">
+                            {% if o.status == 'new' %}Nouvelle{% endif %}
+                            {% if o.status == 'confirmed' %}Confirmée{% endif %}
+                            {% if o.status == 'preparing' %}Préparation{% endif %}
+                            {% if o.status == 'delivering' %}Livraison{% endif %}
+                            {% if o.status == 'delivered' %}Livrée{% endif %}
+                            {% if o.status == 'cancelled' %}Annulée{% endif %}
+                        </span>
+                    </div>
+                </td>
+                <td class="right">
+                    <div class="admin-actions">
+                        <a class="admin-iconBtn" href="{{ url_for('admin_order_view', order_id=o.id) }}" data-modal-open data-modal-title="Commande #{{ o.id }}">
+                            <i class="fa-regular fa-eye"></i>
+                        </a>
+                        {% if o.status == 'new' %}
+                        <a class="admin-iconBtn" href="{{ url_for('admin_order_view', order_id=o.id) }}" data-modal-open data-modal-title="Modifier commande #{{ o.id }}" aria-label="Modifier">
+                            <i class="fa-regular fa-pen-to-square"></i>
+                        </a>
+                        {% else %}
+                        <button class="admin-iconBtn is-disabled" type="button" aria-label="Modifier (Nouvelle seulement)" title="Modifiable uniquement si statut = Nouvelle">
+                            <i class="fa-regular fa-pen-to-square"></i>
+                        </button>
+                        {% endif %}
+
+                        {% if o.status == 'new' or o.status == 'cancelled' %}
+                        <form method="POST" action="{{ url_for('admin_order_delete', order_id=o.id) }}" onsubmit="return confirm('Supprimer cette commande ?');">
+                            <button class="admin-iconBtn is-danger" type="submit" aria-label="Supprimer">
+                                <i class="fa-regular fa-trash-can"></i>
+                            </button>
+                        </form>
+                        {% else %}
+                        <button class="admin-iconBtn is-danger is-disabled" type="button" aria-label="Supprimer (Nouvelle/Annulée seulement)" title="Supprimable uniquement si statut = Nouvelle ou Annulée">
+                            <i class="fa-regular fa-trash-can"></i>
+                        </button>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="admin-pagination">
+    <div class="admin-muted">
+        Total: <strong>{{ total }}</strong> • Page <strong>{{ page }}</strong> / <strong>{{ total_pages }}</strong>
+    </div>
+
+    <div class="admin-pageBtns">
+        <a class="admin-btn {% if page <= 1 %}is-disabled{% endif %}"
+           href="{{ url_for('admin_orders', q=q, status=selected_status, page=1, per_page=per_page) }}">«</a>
+        <a class="admin-btn {% if page <= 1 %}is-disabled{% endif %}"
+           href="{{ url_for('admin_orders', q=q, status=selected_status, page=page-1, per_page=per_page) }}">Préc</a>
+        <a class="admin-btn {% if page >= total_pages %}is-disabled{% endif %}"
+           href="{{ url_for('admin_orders', q=q, status=selected_status, page=page+1, per_page=per_page) }}">Suiv</a>
+        <a class="admin-btn {% if page >= total_pages %}is-disabled{% endif %}"
+           href="{{ url_for('admin_orders', q=q, status=selected_status, page=total_pages, per_page=per_page) }}">»</a>
+    </div>
+</div>
+{% endblock %}
+

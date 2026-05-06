@@ -1,0 +1,38 @@
+<div class="admin-view">
+    <div class="admin-view__top">
+        <img class="admin-view__img"
+             src="{{ url_for('static', filename='images/' + (product.image or 'placeholder.svg')) }}"
+             alt="{{ product.name }}"
+             loading="lazy"
+             onerror="this.onerror=null;this.src='{{ url_for('static', filename='images/placeholder.svg') }}'">
+        <div>
+            <h2 class="admin-view__title">{{ product.name }}</h2>
+            <div class="admin-view__meta">
+                <span class="admin-pill">{{ product.price }} FCFA</span>
+                <span class="admin-muted">{{ product.category }}</span>
+                <span class="admin-muted">ID: {{ product.id }}</span>
+            </div>
+            {% if product.active %}
+            <span class="admin-status is-on">Actif</span>
+            {% else %}
+            <span class="admin-status is-off">Désactivé</span>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if product.description %}
+    <div class="admin-view__desc">{{ product.description }}</div>
+    {% endif %}
+
+    <div class="admin-actions">
+        <a class="admin-btn" href="{{ url_for('admin_product_edit', product_id=product.id) }}" data-modal-open data-modal-title="Modifier">
+            <i class="fa-regular fa-pen-to-square"></i> Modifier
+        </a>
+        <form method="POST" action="{{ url_for('admin_product_delete', product_id=product.id) }}" onsubmit="return confirm('Supprimer ce produit ?');">
+            <button class="admin-btn admin-btn--danger" type="submit">
+                <i class="fa-regular fa-trash-can"></i> Supprimer
+            </button>
+        </form>
+    </div>
+</div>
+

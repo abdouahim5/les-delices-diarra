@@ -1,0 +1,64 @@
+{% if error %}
+<div class="admin-alert admin-alert--error">{{ error }}</div>
+{% endif %}
+
+<form method="POST"
+      action="{% if product %}{{ url_for('admin_product_edit', product_id=product.id) }}{% else %}{{ url_for('admin_product_new') }}{% endif %}"
+      enctype="multipart/form-data"
+      class="admin-form admin-form--modal">
+    <div class="admin-form__row">
+        <div>
+            <label class="admin-label">Nom</label>
+            <input type="text" name="name" value="{{ product.name if product else '' }}" required>
+        </div>
+        <div>
+            <label class="admin-label">Catégorie</label>
+            <select name="category" class="admin-select" required>
+                <option value="" disabled {% if not product %}selected{% endif %}>Sélectionner…</option>
+                {% for c in categories %}
+                <option value="{{ c }}" {% if product and product.category == c %}selected{% endif %}>{{ c }}</option>
+                {% endfor %}
+            </select>
+            <div class="admin-helpRow">
+                <a class="admin-linkInline" href="{{ url_for('admin_categories') }}">Gérer les catégories</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="admin-form__row">
+        <div>
+            <label class="admin-label">Prix (FCFA)</label>
+            <input type="number" name="price" min="1" value="{{ product.price if product else '' }}" required>
+        </div>
+        <div>
+            <label class="admin-label">Image {% if product %}(laisser vide pour garder){% endif %}</label>
+            <input type="file" name="image" accept="image/*" {% if not product %}required{% endif %}>
+        </div>
+    </div>
+
+    <div>
+        <label class="admin-label">Description (optionnel)</label>
+        <textarea name="description">{{ product.description if product else '' }}</textarea>
+    </div>
+
+    <label class="admin-check">
+        <input type="checkbox" name="active" {% if product is none or product.active %}checked{% endif %}>
+        <span>Produit actif</span>
+    </label>
+
+    {% if product and product.image %}
+    <div class="admin-preview">
+        <span class="admin-muted">Image actuelle</span>
+        <img src="{{ url_for('static', filename='images/' + (product.image or 'placeholder.svg')) }}"
+             alt="Aperçu"
+             loading="lazy"
+             onerror="this.onerror=null;this.src='{{ url_for('static', filename='images/placeholder.svg') }}'">
+    </div>
+    {% endif %}
+
+    <div class="admin-actions">
+        <button type="submit" class="admin-btn admin-btn--ok">Enregistrer</button>
+        <a class="admin-btn" href="{{ url_for('admin_products') }}">Retour</a>
+    </div>
+</form>
+

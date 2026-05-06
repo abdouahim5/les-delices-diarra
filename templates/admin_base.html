@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ title if title else "Admin" }} — {{ restaurant_name if restaurant_name else "Les Délices de Diarra" }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v=app_build) }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body class="admin-shell">
+
+<div class="admin-layout">
+    <aside class="admin-sidebar">
+        <a class="admin-brand" href="{{ url_for('admin_dashboard') }}">
+            <div class="admin-brand__logo">
+                <img src="{{ url_for('static', filename='images/logo2.jpg') }}"
+                     alt="Logo"
+                     onerror="this.onerror=null;this.src='{{ url_for('static', filename='images/placeholder.svg') }}'">
+            </div>
+            <div class="admin-brand__text">
+                <strong>Admin</strong>
+                <span>{{ restaurant_name if restaurant_name else "Les Délices de Diarra" }}</span>
+            </div>
+        </a>
+
+        <nav class="admin-nav">
+            <a class="admin-nav__item {% if active_page == 'dashboard' %}is-active{% endif %}" href="{{ url_for('admin_dashboard') }}">
+                <span>Dashboard</span>
+            </a>
+            <a class="admin-nav__item {% if active_page == 'products' %}is-active{% endif %}" href="{{ url_for('admin_products') }}">
+                <span>Produits</span>
+            </a>
+            <a class="admin-nav__item {% if active_page == 'categories' %}is-active{% endif %}" href="{{ url_for('admin_categories') }}">
+                <span>Catégories</span>
+            </a>
+            <a class="admin-nav__item {% if active_page == 'orders' %}is-active{% endif %}" href="{{ url_for('admin_orders') }}">
+                <span>Commandes</span>
+            </a>
+            <a class="admin-nav__item {% if active_page == 'clients' %}is-active{% endif %}" href="{{ url_for('admin_clients') }}">
+                <span>Clients</span>
+            </a>
+        </nav>
+
+        <div class="admin-sidebar__footer">
+            <a class="admin-link-muted" href="{{ url_for('home') }}">Voir le site</a>
+            <a class="admin-link-muted" href="{{ url_for('admin_products_export') }}">Exporter JSON</a>
+            <a class="admin-link-muted danger" href="{{ url_for('admin_logout') }}">Déconnexion</a>
+            <span class="admin-build">build: {{ app_build }}</span>
+        </div>
+    </aside>
+
+    <div class="admin-main">
+        <header class="admin-topbar">
+            <div>
+                <p class="admin-kicker">{{ kicker if kicker else "Tableau de bord" }}</p>
+                <h1 class="admin-title">{{ heading if heading else "Dashboard" }}</h1>
+            </div>
+        </header>
+
+        <main class="admin-content">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+</div>
+
+<div class="admin-modal" id="admin-modal" aria-hidden="true">
+    <div class="admin-modal__backdrop" data-modal-close></div>
+    <div class="admin-modal__panel" role="dialog" aria-modal="true" aria-label="Modal">
+        <div class="admin-modal__head">
+            <strong id="admin-modal-title">Détails</strong>
+            <button class="admin-iconBtn" type="button" data-modal-close aria-label="Fermer">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="admin-modal__body" id="admin-modal-body"></div>
+    </div>
+</div>
+
+<script>
+const modalEl = document.getElementById("admin-modal");
+const modalBody = document.getElementById("admin-modal-body");
+const modalTitle = document.getElementById("admin-modal-title");
+let modalCurrentUrl = null;
+let modalRefreshOnClose = false;
+
+function openModal({ title, url }) {
+  modalTitle.textContent = title || "Détails";
+  modalBody.innerHTML = "<div class='admin-loading'>Chargement…</div>";
+  modalEl.classList.add("is-open");
+  modalEl.setAttribute("aria-hidden", "false");
+  modalCurrentUrl = url;
+
+  fetch(url, { headers: { "X-Admin-Modal": "1" } })
+    .then(r => r.text())
+    .then(html => {
+      modalBody.innerHTML = html;
+      modalRefreshOnClose = !!modalBody.querySelector("[data-modal-refresh-on-close='1']");
+      initAdminOrderForm(modalBody);
+    })
+    .catch(() => { modalBody.innerHTML = "<div class='admin-alert admin-alert--error'>Impossible de charger.</div>"; });
+}
+
+function reloadModal() {
+  if (!modalCurrentUrl) return;
+  modalBody.innerHTML = "<div class='admin-loading'>Mise à jour…</div>";
+  fetch(modalCurrentUrl, { headers: { "X-Admin-Modal": "1" } })
+    .then(r => r.text())
+    .then(html => {
+      modalBody.innerHTML = html;
+      modalRefreshOnClose = !!modalBody.querySelector("[data-modal-refresh-on-close='1']");
+      initAdminOrderForm(modalBody);
+    })
+    .catch(() => { modalBody.innerHTML = "<div class='admin-alert admin-alert--error'>Impossible de recharger.</div>"; });
+}
+
+function closeModal() {
+  modalEl.classList.remove("is-open");
+  modalEl.setAttribute("aria-hidden", "true");
+  modalBody.innerHTML = "";
+  modalCurrentUrl = null;
+  const shouldRefresh = modalRefreshOnClose;
+  modalRefreshOnClose = false;
+  if (shouldRefresh) {
+    window.location.reload();
+  }
+}
+
+function initAdminOrderForm(scope) {
+  if (!scope || scope.dataset.orderFormInited === "1") return;
+  const jsonEl = scope.querySelector("#order-products-json");
+  if (!jsonEl) return; // not an order form
+
+  let PRODUCTS = [];
+  try { PRODUCTS = JSON.parse(jsonEl.textContent || "[]"); } catch (e) { PRODUCTS = []; }
+  const formatFcfa = (n) => `${parseInt(n || 0, 10) || 0} FCFA`;
+  const getProductById = (id) => PRODUCTS.find(p => p.id === id);
+
+  const tbody = scope.querySelector("table.admin-table tbody");
+  const totalEl = scope.querySelector("#order-total");
+  if (!tbody || !totalEl) return;
+
+  function ensureEmptyRow() {
+    const hasItem = !!tbody.querySelector("tr[data-item-row]");
+    const empty = tbody.querySelector(".admin-emptyRowJs");
+    if (empty) empty.style.display = hasItem ? "none" : "";
+  }
+
+  function recalc() {
+    let total = 0;
+    tbody.querySelectorAll("tr[data-item-row]").forEach(row => {
+      const select = row.querySelector("select[name='item_product_id']");
+      const qtyInput = row.querySelector("input[name='item_qty']");
+      const unitEl = row.querySelector("[data-unit]");
+      const subEl = row.querySelector("[data-subtotal]");
+      const p = select ? getProductById(select.value) : null;
+      const unit = p ? (parseInt(p.price || 0, 10) || 0) : 0;
+      const qty = Math.max(parseInt((qtyInput && qtyInput.value) || "0", 10) || 0, 0);
+      const sub = unit * qty;
+      total += sub;
+      if (unitEl) unitEl.textContent = formatFcfa(unit);
+      if (subEl) subEl.textContent = formatFcfa(sub);
+    });
+    totalEl.textContent = formatFcfa(total);
+  }
+
+  function addRow() {
+    const row = document.createElement("tr");
+    row.setAttribute("data-item-row", "1");
+    row.innerHTML = `
+      <td>
+        <select name="item_product_id" class="admin-select" style="margin:0;">
+          ${PRODUCTS.map(p => `<option value="${p.id}">${p.name}</option>`).join("")}
+        </select>
+      </td>
+      <td><span class="admin-pill" data-unit>0 FCFA</span></td>
+      <td><input class="admin-qty" type="number" min="0" name="item_qty" value="1"></td>
+      <td><span class="admin-pill" data-subtotal>0 FCFA</span></td>
+      <td class="right">
+        <button type="button" class="admin-iconBtn is-danger" data-remove-row aria-label="Retirer">
+          <i class="fa-regular fa-trash-can"></i>
+        </button>
+      </td>
+    `;
+    tbody.appendChild(row);
+    ensureEmptyRow();
+    recalc();
+  }
+
+  scope.addEventListener("click", (e) => {
+    const addBtn = e.target.closest("#add-item-btn");
+    if (addBtn) {
+      e.preventDefault();
+      addRow();
+      return;
+    }
+    const del = e.target.closest("[data-remove-row]");
+    if (del) {
+      e.preventDefault();
+      const tr = del.closest("tr[data-item-row]");
+      if (tr) tr.remove();
+      ensureEmptyRow();
+      recalc();
+    }
+  });
+
+  scope.addEventListener("input", (e) => {
+    if (e.target && e.target.name === "item_qty") recalc();
+  });
+  scope.addEventListener("change", (e) => {
+    if (e.target && e.target.name === "item_product_id") recalc();
+  });
+
+  scope.dataset.orderFormInited = "1";
+  ensureEmptyRow();
+  recalc();
+}
+
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-modal-open]");
+  if (btn) {
+    e.preventDefault();
+    openModal({ title: btn.getAttribute("data-modal-title"), url: btn.getAttribute("href") });
+    return;
+  }
+  if (e.target.closest("[data-modal-close]")) {
+    closeModal();
+  }
+});
+
+document.addEventListener("submit", (e) => {
+  const form = e.target;
+  if (!form || !(form instanceof HTMLFormElement)) return;
+  if (!modalEl.classList.contains("is-open")) return;
+  if (!modalEl.contains(form)) return;
+  if (!form.hasAttribute("data-modal-ajax")) return;
+
+  e.preventDefault();
+  const submitters = form.querySelectorAll("button, input[type='submit']");
+  submitters.forEach(b => { b.disabled = true; });
+
+  fetch(form.action, {
+    method: (form.method || "POST").toUpperCase(),
+    body: new FormData(form),
+    headers: { "X-Requested-With": "fetch" },
+  })
+    .then(() => reloadModal())
+    .finally(() => submitters.forEach(b => { b.disabled = false; }));
+});
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && modalEl.classList.contains("is-open")) closeModal();
+});
+
+// init for non-modal pages too
+document.addEventListener("DOMContentLoaded", () => initAdminOrderForm(document));
+</script>
+
+</body>
+</html>

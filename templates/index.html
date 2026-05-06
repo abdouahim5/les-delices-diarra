@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     <title>{{ restaurant_name }}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Commandez facilement des box salées, box sucrées et sandwichs. Préparez votre panier et envoyez votre commande sur WhatsApp.">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 
 <body>
@@ -13,7 +15,9 @@
     <nav class="navbar">
         <div class="brand">
             <div class="logo-circle">
-                <img src="{{ url_for('static', filename='images/logo2.jpg') }}" alt="Logo">
+                <img src="{{ url_for('static', filename='images/logo2.jpg') }}"
+                     alt="Logo"
+                     onerror="this.onerror=null;this.src='{{ url_for('static', filename='images/placeholder.svg') }}'">
             </div>
 
             <div class="brand-text">
@@ -23,14 +27,14 @@
         </div>
 
         <a href="#panier" class="nav-cart">
-            🛒 Panier <span id="cart-count">0</span>
+            Panier <span id="cart-count">0</span>
         </a>
     </nav>
 
     <div class="hero-content">
         <span class="badge-main">Commande rapide par WhatsApp</span>
-        <h2>Des box gourmandes<br>préparées avec soin</h2>
-        <p>Choisissez vos produits, ajoutez-les au panier et envoyez votre commande directement sur WhatsApp.</p>
+        <h2>Commande simple.<br>Goût intense.</h2>
+        <p>Choisissez vos produits, construisez votre panier, puis envoyez votre commande en 1 clic sur WhatsApp.</p>
 
         <div class="hero-actions">
             <a href="#menu" class="hero-btn primary">Voir le menu</a>
@@ -48,30 +52,63 @@
     <div class="layout">
 
         <main id="menu">
+            <div class="menu-topbar">
+                <div class="menu-topbar__left">
+                    <span class="menu-kicker">Menu</span>
+                    <h2 class="menu-title">Choisissez vos produits</h2>
+                    <p class="menu-sub">Ajoutez au panier, puis validez vos infos de livraison.</p>
+                </div>
+                <div class="menu-topbar__right">
+                    <a class="menu-chip" href="#panier">
+                        <i class="fa-solid fa-basket-shopping"></i>
+                        <span>Aller au panier</span>
+                    </a>
+                </div>
+            </div>
+
+            <div class="menu-cats" aria-label="Catégories">
+                {% for category, items in categories.items() %}
+                <a class="menu-chip" href="#cat-{{ loop.index }}">{{ category }}</a>
+                {% endfor %}
+            </div>
+
             {% for category, items in categories.items() %}
-            <section class="section">
+            <section class="section" id="cat-{{ loop.index }}">
                 <div class="section-header">
-                    <span>Menu</span>
+                    <span>Sélection</span>
                     <h2>{{ category }}</h2>
                 </div>
 
                 <div class="menu-grid">
                     {% for item in items %}
                     <article class="card">
-                        <img src="{{ url_for('static', filename='images/' + item.image) }}" alt="{{ item.name }}">
+                        <img src="{{ url_for('static', filename='images/' + (item.image or 'placeholder.svg')) }}"
+                             alt="{{ item.name }}"
+                             loading="lazy"
+                             onerror="this.onerror=null;this.src='{{ url_for('static', filename='images/placeholder.svg') }}'">
 
                         <div class="card-body">
                             <h3>{{ item.name }}</h3>
                             <p class="price">{{ item.price }} FCFA</p>
+                            {% if item.description %}
+                            <p class="desc">{{ item.description }}</p>
+                            {% endif %}
 
                             <input type="hidden" name="{{ item.name }}" value="0" class="hidden-qty">
 
-                            <button type="button"
-                                    class="add-btn"
-                                    data-name="{{ item.name }}"
-                                    data-price="{{ item.price }}">
-                                Ajouter
-                            </button>
+                            <div class="card-actions">
+                                <button type="button"
+                                        class="add-btn"
+                                        data-name="{{ item.name }}"
+                                        data-price="{{ item.price }}">
+                                    Ajouter
+                                </button>
+                                <div class="qty-stepper" data-stepper="{{ item.name }}">
+                                    <button type="button" class="qty-btn" data-action="dec" aria-label="Diminuer">−</button>
+                                    <span class="qty-value" data-qty="{{ item.name }}">0</span>
+                                    <button type="button" class="qty-btn" data-action="inc" aria-label="Augmenter">+</button>
+                                </div>
+                            </div>
                         </div>
                     </article>
                     {% endfor %}
@@ -82,7 +119,10 @@
 
         <aside class="cart" id="panier">
             <div class="cart-card">
-                <h2>🛒 Votre panier</h2>
+                <div class="cart-head">
+                    <h2>Votre panier</h2>
+                    <button type="button" class="cart-clear" id="cart-clear" aria-label="Vider le panier">Vider</button>
+                </div>
 
                 <div id="cart-items">
                     <p class="empty">Aucun article sélectionné.</p>
@@ -97,18 +137,10 @@
                 <input type="text" name="nom" placeholder="Nom complet" required>
                 <input type="text" name="telephone" placeholder="Téléphone" required>
                 <textarea name="adresse" placeholder="Adresse de livraison" required></textarea>
-                <textarea name="note" placeholder="Note spéciale"></textarea>
 
                 <button type="submit" class="validate-btn">
-                    Préparer ma commande
+                    Envoyer sur WhatsApp
                 </button>
-
-                {% if whatsapp_link %}
-                <div class="whatsapp-box">
-                    <p>Commande prête ✅</p>
-                    <a href="{{ whatsapp_link }}" target="_blank">Envoyer sur WhatsApp</a>
-                </div>
-                {% endif %}
             </div>
         </aside>
 
@@ -123,6 +155,12 @@ const cartItems = document.getElementById("cart-items");
 const totalEl = document.getElementById("total");
 const cartCount = document.getElementById("cart-count");
 const hiddenInputs = document.querySelectorAll(".hidden-qty");
+const clearBtn = document.getElementById("cart-clear");
+
+try {
+  const saved = JSON.parse(localStorage.getItem("ldd_cart") || "{}");
+  if (saved && typeof saved === "object") cart = saved;
+} catch (e) {}
 
 buttons.forEach(btn => {
     btn.addEventListener("click", () => {
@@ -158,9 +196,10 @@ function updateCart() {
                     <small>${item.price} FCFA / unité</small>
 
                     <div class="cart-actions">
-                        <button type="button" onclick="decreaseItem('${name}')">−</button>
-                        <span>${item.qty}</span>
-                        <button type="button" onclick="increaseItem('${name}')">+</button>
+                        <button type="button" class="cart-qtyBtn" data-cart-dec="${name}">−</button>
+                        <span class="cart-qty">${item.qty}</span>
+                        <button type="button" class="cart-qtyBtn" data-cart-inc="${name}">+</button>
+                        <button type="button" class="cart-remove" data-cart-rm="${name}" aria-label="Retirer">Retirer</button>
                     </div>
                 </div>
 
@@ -180,6 +219,13 @@ function updateCart() {
     hiddenInputs.forEach(input => {
         input.value = cart[input.name] ? cart[input.name].qty : 0;
     });
+
+    document.querySelectorAll("[data-qty]").forEach(el => {
+      const key = el.getAttribute("data-qty");
+      el.textContent = cart[key] ? cart[key].qty : 0;
+    });
+
+    try { localStorage.setItem("ldd_cart", JSON.stringify(cart)); } catch (e) {}
 }
 
 function increaseItem(name) {
@@ -196,6 +242,54 @@ function decreaseItem(name) {
 
     updateCart();
 }
+
+function removeItem(name) {
+  delete cart[name];
+  updateCart();
+}
+
+document.addEventListener("click", (e) => {
+  const inc = e.target.closest("[data-cart-inc]");
+  if (inc) { e.preventDefault(); increaseItem(inc.getAttribute("data-cart-inc")); return; }
+  const dec = e.target.closest("[data-cart-dec]");
+  if (dec) { e.preventDefault(); decreaseItem(dec.getAttribute("data-cart-dec")); return; }
+  const rm = e.target.closest("[data-cart-rm]");
+  if (rm) { e.preventDefault(); removeItem(rm.getAttribute("data-cart-rm")); return; }
+
+  const step = e.target.closest(".qty-stepper .qty-btn");
+  if (step) {
+    e.preventDefault();
+    const wrap = step.closest(".qty-stepper");
+    const name = wrap ? wrap.getAttribute("data-stepper") : null;
+    if (!name) return;
+    const action = step.getAttribute("data-action");
+    if (action === "inc") {
+      if (!cart[name]) {
+        // infer price from matching button
+        const btn = document.querySelector(`.add-btn[data-name="${CSS.escape(name)}"]`);
+        const price = btn ? parseInt(btn.dataset.price) : 0;
+        cart[name] = { qty: 1, price: price };
+      } else {
+        cart[name].qty++;
+      }
+      updateCart();
+      return;
+    }
+    if (action === "dec") {
+      if (!cart[name]) return;
+      decreaseItem(name);
+    }
+  }
+});
+
+if (clearBtn) {
+  clearBtn.addEventListener("click", () => {
+    cart = {};
+    updateCart();
+  });
+}
+
+updateCart();
 </script>
 
 </body>

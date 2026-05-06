@@ -1,0 +1,95 @@
+{% extends "admin_base.html" %}
+
+{% block content %}
+<div class="admin-filters">
+    <form method="GET" class="admin-filters__row">
+        <div class="admin-filters__left">
+            <div class="admin-field">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" name="q" value="{{ q }}" placeholder="Rechercher (nom, téléphone, adresse)…">
+            </div>
+            <button class="admin-btn" type="submit"><i class="fa-solid fa-filter"></i> Filtrer</button>
+            <a class="admin-btn" href="{{ url_for('admin_clients') }}"><i class="fa-solid fa-rotate-left"></i> Reset</a>
+        </div>
+
+        <a class="admin-primaryBtn admin-filters__primary" href="{{ url_for('admin_client_new') }}" data-modal-open data-modal-title="Nouveau client">
+            <i class="fa-solid fa-plus"></i>
+            <span>Nouveau client</span>
+        </a>
+    </form>
+</div>
+
+<div class="admin-card">
+    <div class="admin-tableWrap">
+        <table class="admin-table" style="min-width: 860px;">
+            <thead>
+            <tr>
+                <th>Client</th>
+                <th>Téléphone</th>
+                <th>Adresse</th>
+                <th class="right">Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% if clients|length == 0 %}
+            <tr>
+                <td colspan="4">
+                    <div class="admin-emptyRow">Aucun client.</div>
+                </td>
+            </tr>
+            {% endif %}
+            {% for c in clients %}
+            <tr>
+                <td>
+                    <div class="admin-prod">
+                        <div class="admin-prod__img" style="display:grid;place-items:center;">
+                            <i class="fa-regular fa-user" style="color:rgba(71,85,105,0.9);"></i>
+                        </div>
+                        <div class="admin-prod__text">
+                            <strong>{{ c.full_name }}</strong>
+                            <span class="admin-muted">ID: {{ c.id }}</span>
+                        </div>
+                    </div>
+                </td>
+                <td>{{ c.phone }}</td>
+                <td class="admin-muted">{{ c.address }}</td>
+                <td class="right">
+                    <div class="admin-actions">
+                        <a class="admin-iconBtn" href="{{ url_for('admin_client_view', client_id=c.id) }}" data-modal-open data-modal-title="Client">
+                            <i class="fa-regular fa-eye"></i>
+                        </a>
+                        <a class="admin-iconBtn" href="{{ url_for('admin_client_edit', client_id=c.id) }}" data-modal-open data-modal-title="Modifier">
+                            <i class="fa-regular fa-pen-to-square"></i>
+                        </a>
+                        <form method="POST" action="{{ url_for('admin_client_delete', client_id=c.id) }}" onsubmit="return confirm('Supprimer ce client ?');">
+                            <button class="admin-iconBtn is-danger" type="submit" aria-label="Supprimer">
+                                <i class="fa-regular fa-trash-can"></i>
+                            </button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="admin-pagination">
+    <div class="admin-muted">
+        Total: <strong>{{ total }}</strong> • Page <strong>{{ page }}</strong> / <strong>{{ total_pages }}</strong>
+    </div>
+
+    <div class="admin-pageBtns">
+        <a class="admin-btn {% if page <= 1 %}is-disabled{% endif %}"
+           href="{{ url_for('admin_clients', q=q, page=1, per_page=per_page) }}">«</a>
+        <a class="admin-btn {% if page <= 1 %}is-disabled{% endif %}"
+           href="{{ url_for('admin_clients', q=q, page=page-1, per_page=per_page) }}">Préc</a>
+        <a class="admin-btn {% if page >= total_pages %}is-disabled{% endif %}"
+           href="{{ url_for('admin_clients', q=q, page=page+1, per_page=per_page) }}">Suiv</a>
+        <a class="admin-btn {% if page >= total_pages %}is-disabled{% endif %}"
+           href="{{ url_for('admin_clients', q=q, page=total_pages, per_page=per_page) }}">»</a>
+    </div>
+</div>
+{% endblock %}
+
