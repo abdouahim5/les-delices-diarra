@@ -1838,6 +1838,7 @@ body.admin-shell {
     .layout { grid-template-columns: 1fr; }
     .cart { position: relative; top: 0; }
     .hero-content { padding: 34px 0 56px; }
+    .menu-cats { position: relative; top: 0; }
 }
 
 @media (max-width: 520px) {
@@ -1860,6 +1861,46 @@ body.admin-shell {
     .admin-view__top { grid-template-columns: 1fr; }
     .admin-view__img { width: 100%; height: 190px; }
     .card img { height: 130px; }
+    .card-actions { grid-template-columns: 1fr; }
+    .qty-stepper { justify-content: center; }
+    .menu-topbar__right { width: 100%; }
+    .menu-topbar__right .menu-chip { width: 100%; justify-content: center; }
+    .menu-cats { padding: 8px; }
+    .menu-chip { width: 100%; justify-content: center; }
+    .cart-actions { flex-wrap: wrap; }
+    .cart-remove { padding: 0; }
+}
+
+/* Responsive admin tables & spacing */
+@media (max-width: 900px) {
+    .admin-layout { grid-template-columns: 1fr; }
+    .admin-sidebar { position: relative; height: auto; top: 0; }
+    .admin-main { border-radius: 22px; }
+
+    .admin-content { padding: 14px; }
+    .admin-topbar { padding: 14px 14px 10px; }
+
+    .admin-table { min-width: 0; }
+    .admin-table th,
+    .admin-table td { padding: 10px 10px; }
+    .admin-table thead th { font-size: 11px; }
+
+    .admin-actions { gap: 6px; }
+}
+
+@media (max-width: 620px) {
+    .admin-layout { width: 96%; margin: 12px auto; }
+    .admin-title { font-size: 18px; }
+    .admin-card__head h2 { font-size: 15px; }
+
+    .admin-statusCell { padding: 7px 9px; font-size: 12px; }
+    .admin-dotStatus { width: 9px; height: 9px; }
+
+    .admin-modal__panel { width: min(94vw, 820px); margin: 4vh auto 0; }
+    .admin-modal__body { padding: 12px; }
+
+    .admin-kpi { grid-template-columns: 44px 1fr; }
+    .admin-kpi__action { grid-column: 1 / -1; justify-self: start; }
 }
 
 @media (max-width: 1100px) {
