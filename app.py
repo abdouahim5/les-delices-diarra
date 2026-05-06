@@ -11,7 +11,7 @@ app.secret_key = os.getenv("SECRET_KEY", "cle-secrete-temporaire")
 
 RESTAURANT_NAME = "Les Délices de Diarra"
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
-WHATSAPP_NUMBER = os.getenv("WHATSAPP_NUMBER")
+WHATSAPP_NUMBER = os.getenv("WHATSAPP_NUMBER","221776525167")
 BASE_URL = os.getenv("BASE_URL", "https://les-delices-diarra.onrender.com")
 
 menu = [
