@@ -22,7 +22,7 @@ RESTAURANT_NAME = "Les Délices de Diarra"
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 WHATSAPP_NUMBER = os.getenv("WHATSAPP_NUMBER")
 BASE_URL = os.getenv("BASE_URL", "https://les-delices-diarra.onrender.com")
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = (os.getenv("DATABASE_URL") or "").strip() or None
 
 PRODUCTS_PATH = Path(__file__).resolve().with_name("products.json")
 UPLOAD_DIR = Path(__file__).resolve().parent / "static" / "images" / "uploads"
@@ -39,7 +39,10 @@ def _normalize_database_url(url: str | None) -> str | None:
     return url
 
 
-app.config["SQLALCHEMY_DATABASE_URI"] = _normalize_database_url(DATABASE_URL)
+_db_url = _normalize_database_url(DATABASE_URL)
+# Flask-SQLAlchemy requires a URI at import time. If DATABASE_URL is not set
+# (e.g. first Render deploy or local JSON mode), we use an in-memory sqlite.
+app.config["SQLALCHEMY_DATABASE_URI"] = _db_url or "sqlite:///:memory:"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
@@ -133,7 +136,8 @@ class OrderItem(db.Model):
 
 
 def _db_enabled() -> bool:
-    return bool(app.config.get("SQLALCHEMY_DATABASE_URI"))
+    # Only treat as "enabled" when a real DATABASE_URL is provided.
+    return bool(DATABASE_URL)
 
 
 def get_category_names() -> list[str]:
