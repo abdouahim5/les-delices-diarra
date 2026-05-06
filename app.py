@@ -19,7 +19,7 @@ app.secret_key = os.getenv("SECRET_KEY", "cle-secrete-temporaire")
 APP_BUILD = "admin-crud-v1"
 
 RESTAURANT_NAME = "Les Délices de Diarra"
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
+ADMIN_PASSWORD = (os.getenv("ADMIN_PASSWORD") or "").strip() or None
 WHATSAPP_NUMBER = os.getenv("WHATSAPP_NUMBER")
 BASE_URL = os.getenv("BASE_URL", "https://les-delices-diarra.onrender.com")
 DATABASE_URL = (os.getenv("DATABASE_URL") or "").strip() or None
@@ -406,7 +406,10 @@ def inject_build():
 @app.route("/admin", methods=["GET", "POST"])
 def admin():
     if request.method == "POST":
-        password = request.form.get("password", "")
+        password = (request.form.get("password") or "").strip()
+
+        if not ADMIN_PASSWORD:
+            return render_template("admin_login.html", error="ADMIN_PASSWORD non configuré sur le serveur (Render → Environment).")
 
         if password == ADMIN_PASSWORD:
             session["admin"] = True
