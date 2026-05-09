@@ -100,6 +100,8 @@ def _build_invoice_pdf(order: "Order", restaurant_name: str, whatsapp_number: st
     C_TOTAL_BORDER = HexColor("#fed7aa")
     C_BG_PAGE = HexColor("#f3f4f6")
     C_LINE = HexColor("#e5e7eb")
+    C_TABLE_HEAD_BG = HexColor("#f1f5f9")  # gris-bleu très léger (comme la facture web)
+    C_TABLE_HEAD_TEXT = HexColor("#64748b")
 
     margin = 14 * mm
     pad = 10 * mm
@@ -119,8 +121,8 @@ def _build_invoice_pdf(order: "Order", restaurant_name: str, whatsapp_number: st
     stat_fr = _STATUS_FR.get(order.status or "", order.status or "—")
     items = list(order.items)
 
-    row_h = 22
-    thead_h = 18
+    row_h = 24
+    thead_h = 20
     total_bar_h = 40
     footer_h = 52  # trois lignes centrées (nom, adresse, remerciement)
 
@@ -142,43 +144,47 @@ def _build_invoice_pdf(order: "Order", restaurant_name: str, whatsapp_number: st
         c.setLineWidth(0.75)
         c.roundRect(card_x, card_y, card_w, card_h, radius_card, fill=1, stroke=1)
 
-    def table_column_xs(inner_left: float, inner_w: float):
+    def table_layout(inner_left: float, inner_w: float):
+        """Colonnes : produit (gauche), PU, QTÉ (centrée), sous-total — sans filets verticaux."""
         x_prod = inner_left
-        x_pu = inner_left + inner_w * 0.44
-        x_qt = inner_left + inner_w * 0.66
-        x_st = inner_left + inner_w - 2
-        return x_prod, x_pu, x_qt, x_st
+        # Répartition proche du tableau web : plus d'espace pour le libellé produit
+        x_pu_right = inner_left + inner_w * 0.56
+        x_qt_center = inner_left + inner_w * 0.645
+        x_st_right = inner_left + inner_w - 2
+        return x_prod, x_pu_right, x_qt_center, x_st_right
 
     def draw_table_head(y_baseline: float, inner_left: float, inner_w: float) -> float:
-        """Returns y below header band (start of first row text)."""
-        band_bottom = y_baseline - thead_h + 3
-        c.setFillColor(HexColor("#f9fafb"))
-        c.rect(inner_left - 2, band_bottom, inner_w + 4, thead_h, fill=1, stroke=0)
-        x_prod, x_pu, x_qt, x_st = table_column_xs(inner_left, inner_w)
-        c.setFont("Helvetica-Bold", 7.5)
-        c.setFillColor(C_MUTED)
-        c.drawString(x_prod, y_baseline - 11, "PRODUIT")
-        c.drawRightString(x_pu, y_baseline - 11, "PU")
-        c.drawRightString(x_qt, y_baseline - 11, "QTÉ")
-        c.drawRightString(x_st, y_baseline - 11, "SOUS-TOTAL")
+        """Bandeau d'en-tête gris-bleu, texte petit caps gris, filet fin sous l'en-tête uniquement."""
+        band_bottom = y_baseline - thead_h + 2
+        c.setFillColor(C_TABLE_HEAD_BG)
+        c.rect(inner_left, band_bottom, inner_w, thead_h, fill=1, stroke=0)
+        x_prod, x_pu_right, x_qt_center, x_st_right = table_layout(inner_left, inner_w)
+        c.setFont("Helvetica", 7.5)
+        c.setFillColor(C_TABLE_HEAD_TEXT)
+        y_h = y_baseline - 12
+        c.drawString(x_prod + 2, y_h, "PRODUIT")
+        c.drawRightString(x_pu_right - 2, y_h, "PU")
+        c.drawCentredString(x_qt_center, y_h, "QTÉ")
+        c.drawRightString(x_st_right, y_h, "SOUS-TOTAL")
         c.setStrokeColor(C_LINE)
-        c.setLineWidth(0.5)
-        c.line(inner_left - 2, band_bottom, inner_left + inner_w + 2, band_bottom)
-        return band_bottom - 8
+        c.setLineWidth(0.6)
+        c.line(inner_left, band_bottom, inner_left + inner_w, band_bottom)
+        return band_bottom - 10
 
     def draw_item_row(y_baseline: float, it, inner_left: float, inner_w: float) -> None:
-        x_prod, x_pu, x_qt, x_st = table_column_xs(inner_left, inner_w)
-        c.setStrokeColor(C_LINE)
-        c.line(inner_left - 2, y_baseline + 16, inner_left + inner_w + 2, y_baseline + 16)
+        x_prod, x_pu_right, x_qt_center, x_st_right = table_layout(inner_left, inner_w)
         name = (it.name or "")[:52]
         c.setFillColor(C_TEXT)
-        c.setFont("Helvetica-Bold", 9)
-        c.drawString(x_prod, y_baseline, name)
-        c.setFont("Helvetica", 9)
-        c.drawRightString(x_pu, y_baseline, f"{int(it.unit_price)} FCFA")
-        c.drawRightString(x_qt, y_baseline, str(int(it.qty)))
-        c.setFont("Helvetica-Bold", 9)
-        c.drawRightString(x_st, y_baseline, f"{int(it.subtotal)} FCFA")
+        c.setFont("Helvetica-Bold", 9.5)
+        c.drawString(x_prod + 2, y_baseline, name)
+        c.setFont("Helvetica", 9.5)
+        c.setFillColor(C_TEXT)
+        c.drawRightString(x_pu_right - 2, y_baseline, f"{int(it.unit_price)} FCFA")
+        qty_s = str(int(it.qty))
+        c.setFont("Helvetica", 9.5)
+        c.drawCentredString(x_qt_center, y_baseline, qty_s)
+        c.setFont("Helvetica-Bold", 9.5)
+        c.drawRightString(x_st_right, y_baseline, f"{int(it.subtotal)} FCFA")
 
     page_bg()
     draw_card_frame()
@@ -297,7 +303,7 @@ def _build_invoice_pdf(order: "Order", restaurant_name: str, whatsapp_number: st
 
     inner_left = ix + 8
     inner_w = usable_w - 16
-    ly = draw_table_head(y_detail_title - 14, inner_left, inner_w)
+    ly = draw_table_head(y_detail_title - 18, inner_left, inner_w)
 
     reserve_bottom = card_y + footer_h + total_bar_h + 50
     item_idx = 0
