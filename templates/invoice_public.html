@@ -73,19 +73,19 @@
       <table class="invoice__table">
         <thead>
         <tr>
-          <th>Produit</th>
-          <th class="right">PU</th>
-          <th class="right">Qté</th>
-          <th class="right">Sous-total</th>
+          <th>PRODUIT</th>
+          <th class="invoice__thNum">PU</th>
+          <th class="invoice__thQty">QTÉ</th>
+          <th class="invoice__thNum">SOUS-TOTAL</th>
         </tr>
         </thead>
         <tbody>
         {% for it in order.items %}
         <tr>
           <td><strong>{{ it.name }}</strong></td>
-          <td class="right">{{ it.unit_price }} FCFA</td>
-          <td class="right">{{ it.qty }}</td>
-          <td class="right"><strong>{{ it.subtotal }} FCFA</strong></td>
+          <td class="invoice__tdNum">{{ it.unit_price }} FCFA</td>
+          <td class="invoice__tdQty">{{ it.qty }}</td>
+          <td class="invoice__tdNum"><strong>{{ it.subtotal }} FCFA</strong></td>
         </tr>
         {% endfor %}
         </tbody>

@@ -121,8 +121,8 @@ def _build_invoice_pdf(order: "Order", restaurant_name: str, whatsapp_number: st
     stat_fr = _STATUS_FR.get(order.status or "", order.status or "—")
     items = list(order.items)
 
-    row_h = 24
-    thead_h = 20
+    row_h = 26
+    thead_h = 22
     total_bar_h = 40
     footer_h = 52  # trois lignes centrées (nom, adresse, remerciement)
 
@@ -145,46 +145,69 @@ def _build_invoice_pdf(order: "Order", restaurant_name: str, whatsapp_number: st
         c.roundRect(card_x, card_y, card_w, card_h, radius_card, fill=1, stroke=1)
 
     def table_layout(inner_left: float, inner_w: float):
-        """Colonnes : produit (gauche), PU, QTÉ (centrée), sous-total — sans filets verticaux."""
-        x_prod = inner_left
-        # Répartition proche du tableau web : plus d'espace pour le libellé produit
-        x_pu_right = inner_left + inner_w * 0.56
-        x_qt_center = inner_left + inner_w * 0.645
-        x_st_right = inner_left + inner_w - 2
-        return x_prod, x_pu_right, x_qt_center, x_st_right
+        """
+        Colonnes fixes (parts du tableau) — évite chevauchement PU / QTÉ / sous-total.
+        prod ~52 % | PU ~18 % | QTÉ ~10 % | sous-total ~20 %
+        """
+        x0 = inner_left + 2
+        w = inner_w - 4
+        x_prod_end = x0 + w * 0.52
+        x_pu_end = x0 + w * 0.70
+        x_qt_end = x0 + w * 0.82
+        x_end = inner_left + inner_w - 2
+        x_qt_center = (x_pu_end + x_qt_end) / 2
+        prod_max_w = x_prod_end - x0 - 4
+        return {
+            "x_prod": x0,
+            "x_pu_right": x_pu_end - 4,
+            "x_qt_center": x_qt_center,
+            "x_st_right": x_end,
+            "prod_max_w": max(prod_max_w, 40),
+        }
 
-    def draw_table_head(y_baseline: float, inner_left: float, inner_w: float) -> float:
-        """Bandeau d'en-tête gris-bleu, texte petit caps gris, filet fin sous l'en-tête uniquement."""
-        band_bottom = y_baseline - thead_h + 2
+    def truncate_fit(text: str, font: str, size: float, max_w: float) -> str:
+        t = (text or "").strip() or "—"
+        if stringWidth(t, font, size) <= max_w:
+            return t
+        ell = "…"
+        while len(t) > 1 and stringWidth(t + ell, font, size) > max_w:
+            t = t[:-1]
+        return t + ell
+
+    def draw_table_head(thead_top: float, inner_left: float, inner_w: float) -> float:
+        """
+        thead_top : bord haut du bandeau d'en-tête (coordonnée PDF, vers le haut de page).
+        Retourne la baseline de la première ligne de données.
+        """
+        thead_bottom = thead_top - thead_h
         c.setFillColor(C_TABLE_HEAD_BG)
-        c.rect(inner_left, band_bottom, inner_w, thead_h, fill=1, stroke=0)
-        x_prod, x_pu_right, x_qt_center, x_st_right = table_layout(inner_left, inner_w)
-        c.setFont("Helvetica", 7.5)
+        c.rect(inner_left, thead_bottom, inner_w, thead_h, fill=1, stroke=0)
+        lay = table_layout(inner_left, inner_w)
+        # Baseline centrée verticalement dans la bande (approx. Helvetica 8 pt)
+        y_h = thead_bottom + thead_h * 0.42
+        c.setFont("Helvetica", 8)
         c.setFillColor(C_TABLE_HEAD_TEXT)
-        y_h = y_baseline - 12
-        c.drawString(x_prod + 2, y_h, "PRODUIT")
-        c.drawRightString(x_pu_right - 2, y_h, "PU")
-        c.drawCentredString(x_qt_center, y_h, "QTÉ")
-        c.drawRightString(x_st_right, y_h, "SOUS-TOTAL")
+        c.drawString(lay["x_prod"], y_h, "PRODUIT")
+        c.drawRightString(lay["x_pu_right"], y_h, "PU")
+        c.drawCentredString(lay["x_qt_center"], y_h, "QTÉ")
+        c.drawRightString(lay["x_st_right"], y_h, "SOUS-TOTAL")
         c.setStrokeColor(C_LINE)
-        c.setLineWidth(0.6)
-        c.line(inner_left, band_bottom, inner_left + inner_w, band_bottom)
-        return band_bottom - 10
+        c.setLineWidth(0.75)
+        c.line(inner_left, thead_bottom, inner_left + inner_w, thead_bottom)
+        return thead_bottom - 12
 
     def draw_item_row(y_baseline: float, it, inner_left: float, inner_w: float) -> None:
-        x_prod, x_pu_right, x_qt_center, x_st_right = table_layout(inner_left, inner_w)
-        name = (it.name or "")[:52]
+        lay = table_layout(inner_left, inner_w)
+        name = truncate_fit(it.name or "", "Helvetica-Bold", 9, lay["prod_max_w"])
         c.setFillColor(C_TEXT)
-        c.setFont("Helvetica-Bold", 9.5)
-        c.drawString(x_prod + 2, y_baseline, name)
-        c.setFont("Helvetica", 9.5)
-        c.setFillColor(C_TEXT)
-        c.drawRightString(x_pu_right - 2, y_baseline, f"{int(it.unit_price)} FCFA")
-        qty_s = str(int(it.qty))
-        c.setFont("Helvetica", 9.5)
-        c.drawCentredString(x_qt_center, y_baseline, qty_s)
-        c.setFont("Helvetica-Bold", 9.5)
-        c.drawRightString(x_st_right, y_baseline, f"{int(it.subtotal)} FCFA")
+        c.setFont("Helvetica-Bold", 9)
+        c.drawString(lay["x_prod"], y_baseline, name)
+        c.setFont("Helvetica", 9)
+        c.drawRightString(lay["x_pu_right"], y_baseline, f"{int(it.unit_price)} FCFA")
+        c.setFont("Helvetica", 9)
+        c.drawCentredString(lay["x_qt_center"], y_baseline, str(int(it.qty)))
+        c.setFont("Helvetica-Bold", 9)
+        c.drawRightString(lay["x_st_right"], y_baseline, f"{int(it.subtotal)} FCFA")
 
     page_bg()
     draw_card_frame()
@@ -303,7 +326,8 @@ def _build_invoice_pdf(order: "Order", restaurant_name: str, whatsapp_number: st
 
     inner_left = ix + 8
     inner_w = usable_w - 16
-    ly = draw_table_head(y_detail_title - 18, inner_left, inner_w)
+    thead_top = y_detail_title - 16
+    ly = draw_table_head(thead_top, inner_left, inner_w)
 
     reserve_bottom = card_y + footer_h + total_bar_h + 50
     item_idx = 0
@@ -318,8 +342,7 @@ def _build_invoice_pdf(order: "Order", restaurant_name: str, whatsapp_number: st
             c.setFont("Helvetica-Bold", 10)
             title = f"Détails (suite) — {public_id}"
             c.drawString(ix, iy_top - 20, title)
-            ly = iy_top - 44
-            ly = draw_table_head(ly, inner_left, inner_w)
+            ly = draw_table_head(iy_top - 44, inner_left, inner_w)
             reserve_bottom = card_y + footer_h + total_bar_h + 50
             continue
         draw_item_row(ly, it, inner_left, inner_w)
