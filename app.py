@@ -1,6 +1,7 @@
 import os
 import json
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify
+import io
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify, send_file
 from urllib.parse import quote
 from pathlib import Path
 from dotenv import load_dotenv
@@ -9,6 +10,11 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import or_, text
 from datetime import datetime
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import mm
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfgen import canvas
 
 load_dotenv(dotenv_path=Path(__file__).resolve().with_name(".env"), override=False)
 
@@ -63,6 +69,102 @@ def _wa_phone(phone: str) -> str:
 
 def _invoice_token(order_id: int) -> str:
     return _invoice_serializer.dumps({"oid": int(order_id)})
+
+
+def _build_invoice_pdf(order: "Order", restaurant_name: str, whatsapp_number: str | None) -> bytes:
+    """
+    Lightweight PDF invoice generation (pure-python via reportlab).
+    """
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf, pagesize=A4)
+    width, height = A4
+
+    margin = 18 * mm
+    y = height - margin
+
+    # Header
+    c.setFont("Helvetica-Bold", 16)
+    c.drawString(margin, y, restaurant_name)
+    y -= 6 * mm
+
+    c.setFont("Helvetica", 10)
+    c.setFillColorRGB(0.28, 0.33, 0.41)  # muted-ish
+    c.drawString(margin, y, "Thies, quartier SOM, près de la mosquée Ndiakhaté")
+    if whatsapp_number:
+        y -= 5 * mm
+        c.drawString(margin, y, f"Commande WhatsApp : {whatsapp_number}")
+    c.setFillColorRGB(0, 0, 0)
+
+    # Meta
+    y -= 10 * mm
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(margin, y, "FACTURE")
+    y -= 6 * mm
+    c.setFont("Helvetica", 10)
+    public_id = order.public_id or f"#{order.id}"
+    c.drawString(margin, y, f"N°: {public_id}")
+    c.drawRightString(width - margin, y, f"Date: {order.created_at.strftime('%Y-%m-%d %H:%M')}")
+
+    # Client
+    y -= 10 * mm
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(margin, y, "Client & livraison")
+    y -= 6 * mm
+    c.setFont("Helvetica", 10)
+    c.drawString(margin, y, f"{order.customer_name} • {order.customer_phone}")
+    y -= 5 * mm
+    addr = (order.customer_address or "").strip()
+    if addr:
+        text = c.beginText(margin, y)
+        text.setFont("Helvetica", 10)
+        text.setFillColorRGB(0.28, 0.33, 0.41)
+        for line in addr.splitlines():
+            text.textLine(line)
+        c.drawText(text)
+        c.setFillColorRGB(0, 0, 0)
+        y = text.getY() - 2 * mm
+
+    # Table header
+    y -= 8 * mm
+    c.setFont("Helvetica-Bold", 10)
+    c.drawString(margin, y, "Produit")
+    c.drawRightString(width - margin - 70 * mm, y, "PU")
+    c.drawRightString(width - margin - 40 * mm, y, "Qté")
+    c.drawRightString(width - margin, y, "Sous-total")
+    y -= 3 * mm
+    c.line(margin, y, width - margin, y)
+
+    # Items
+    c.setFont("Helvetica", 10)
+    y -= 6 * mm
+    for it in order.items:
+        if y < margin + 35 * mm:
+            c.showPage()
+            y = height - margin
+            c.setFont("Helvetica-Bold", 10)
+            c.drawString(margin, y, "Produit")
+            c.drawRightString(width - margin - 70 * mm, y, "PU")
+            c.drawRightString(width - margin - 40 * mm, y, "Qté")
+            c.drawRightString(width - margin, y, "Sous-total")
+            y -= 3 * mm
+            c.line(margin, y, width - margin, y)
+            c.setFont("Helvetica", 10)
+            y -= 6 * mm
+
+        c.drawString(margin, y, (it.name or "")[:60])
+        c.drawRightString(width - margin - 70 * mm, y, f"{int(it.unit_price)} FCFA")
+        c.drawRightString(width - margin - 40 * mm, y, str(int(it.qty)))
+        c.drawRightString(width - margin, y, f"{int(it.subtotal)} FCFA")
+        y -= 6 * mm
+
+    # Total
+    y -= 4 * mm
+    c.setFont("Helvetica-Bold", 12)
+    c.drawRightString(width - margin, y, f"TOTAL: {int(order.total)} FCFA")
+
+    c.showPage()
+    c.save()
+    return buf.getvalue()
 
 
 class Product(db.Model):
@@ -1340,10 +1442,11 @@ def admin_order_receipt(order_id: int):
 
     token = _invoice_token(o.id)
     public_url = f"{BASE_URL}{url_for('public_invoice', order_id=o.id)}?token={token}"
+    public_pdf_url = f"{BASE_URL}{url_for('public_invoice_pdf', order_id=o.id)}?token={token}"
     phone_digits = _wa_phone(o.customer_phone)
     wa_invoice_link = None
     if phone_digits:
-        msg = f"Bonjour {o.customer_name}, voici votre facture : {public_url}"
+        msg = f"Bonjour {o.customer_name}, voici votre facture (PDF) : {public_pdf_url}"
         wa_invoice_link = f"https://wa.me/{phone_digits}?text={quote(msg)}"
 
     return render_template(
@@ -1352,11 +1455,34 @@ def admin_order_receipt(order_id: int):
         restaurant_name=RESTAURANT_NAME,
         whatsapp_number=WHATSAPP_NUMBER,
         public_invoice_url=public_url,
+        public_invoice_pdf_url=public_pdf_url,
         wa_invoice_link=wa_invoice_link,
         active_page="orders",
         kicker="Ventes",
         heading="Reçu",
         order=o,
+    )
+
+
+@app.route("/admin/orders/<int:order_id>/receipt.pdf", methods=["GET"])
+def admin_order_receipt_pdf(order_id: int):
+    if not session.get("admin"):
+        return redirect(url_for("admin"))
+    if not _db_enabled():
+        return redirect(url_for("admin_orders"))
+
+    _ensure_db_schema()
+    o = db.session.get(Order, order_id)
+    if not o:
+        return redirect(url_for("admin_orders"))
+
+    pdf_bytes = _build_invoice_pdf(o, RESTAURANT_NAME, WHATSAPP_NUMBER)
+    filename = f"facture-{(o.public_id or str(o.id)).replace('/', '-')}.pdf"
+    return send_file(
+        io.BytesIO(pdf_bytes),
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=filename,
     )
 
 
@@ -1391,6 +1517,38 @@ def public_invoice(order_id: int):
         restaurant_name=RESTAURANT_NAME,
         whatsapp_number=WHATSAPP_NUMBER,
         order=o,
+    )
+
+
+@app.route("/invoice/<int:order_id>/pdf", methods=["GET"])
+def public_invoice_pdf(order_id: int):
+    token = (request.args.get("token") or "").strip()
+    if not token:
+        return "Not found", 404
+    try:
+        data = _invoice_serializer.loads(token, max_age=60 * 60 * 24 * 30)  # 30 days
+    except SignatureExpired:
+        return "Lien expiré", 410
+    except BadSignature:
+        return "Not found", 404
+
+    if not isinstance(data, dict) or int(data.get("oid") or 0) != int(order_id):
+        return "Not found", 404
+    if not _db_enabled():
+        return "Not found", 404
+
+    _ensure_db_schema()
+    o = db.session.get(Order, order_id)
+    if not o:
+        return "Not found", 404
+
+    pdf_bytes = _build_invoice_pdf(o, RESTAURANT_NAME, WHATSAPP_NUMBER)
+    filename = f"facture-{(o.public_id or str(o.id)).replace('/', '-')}.pdf"
+    return send_file(
+        io.BytesIO(pdf_bytes),
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=filename,
     )
 
 

@@ -6,6 +6,9 @@
         <button class="admin-btn" type="button" onclick="window.print()">
             <i class="fa-solid fa-print"></i> Imprimer
         </button>
+        <a class="admin-btn" href="{{ url_for('admin_order_receipt_pdf', order_id=order.id) }}" target="_blank" rel="noopener">
+            <i class="fa-solid fa-file-pdf"></i> PDF
+        </a>
         {% if wa_invoice_link %}
         <a class="admin-btn" href="{{ wa_invoice_link }}" target="_blank" rel="noopener">
             <i class="fa-brands fa-whatsapp"></i> Envoyer facture
