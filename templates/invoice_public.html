@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Facture — {{ order.public_id if order.public_id else ("#" ~ order.id) }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v=app_build) }}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body style="padding:18px;">
+
+<div class="invoice">
+  <div class="invoice__sheet">
+    <div class="invoice__header">
+      <div class="invoice__brand">
+        <div class="invoice__logo">
+          <img src="{{ url_for('static', filename='images/logo2.jpg') }}"
+               alt="Logo"
+               onerror="this.onerror=null;this.src='{{ url_for('static', filename='images/placeholder.svg') }}'">
+        </div>
+        <div>
+          <div class="invoice__name">{{ restaurant_name if restaurant_name else "Les Délices de Diarra" }}</div>
+          <div class="invoice__tag">
+            Facture • Commande<br>
+            Thies, quartier SOM, près de la mosquée Ndiakhaté
+            {% if whatsapp_number %}
+            <br>Commande WhatsApp : <strong>{{ whatsapp_number }}</strong>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div class="invoice__meta">
+        <div class="invoice__metaRow">
+          <span class="invoice__metaLabel">N°</span>
+          <strong>{{ order.public_id if order.public_id else ("#" ~ order.id) }}</strong>
+        </div>
+        <div class="invoice__metaRow">
+          <span class="invoice__metaLabel">Date</span>
+          <strong>{{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</strong>
+        </div>
+        <div class="invoice__metaRow">
+          <span class="invoice__metaLabel">Statut</span>
+          <strong>
+            {% if order.status == 'new' %}Nouvelle{% endif %}
+            {% if order.status == 'confirmed' %}Confirmée{% endif %}
+            {% if order.status == 'preparing' %}Préparation{% endif %}
+            {% if order.status == 'delivering' %}Livraison{% endif %}
+            {% if order.status == 'delivered' %}Livrée{% endif %}
+            {% if order.status == 'cancelled' %}Annulée{% endif %}
+          </strong>
+        </div>
+      </div>
+    </div>
+
+    <div class="invoice__section">
+      <div class="invoice__sectionTitle">Client & livraison</div>
+      <div class="invoice__grid">
+        <div class="invoice__block">
+          <div class="invoice__blockLabel">Client</div>
+          <div class="invoice__blockValue"><strong>{{ order.customer_name }}</strong></div>
+          <div class="invoice__blockSub">{{ order.customer_phone }}</div>
+        </div>
+        <div class="invoice__block">
+          <div class="invoice__blockLabel">Adresse</div>
+          <div class="invoice__blockValue" style="white-space: pre-wrap;">{{ order.customer_address }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="invoice__section">
+      <div class="invoice__sectionTitle">Détails</div>
+      <table class="invoice__table">
+        <thead>
+        <tr>
+          <th>Produit</th>
+          <th class="right">PU</th>
+          <th class="right">Qté</th>
+          <th class="right">Sous-total</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for it in order.items %}
+        <tr>
+          <td><strong>{{ it.name }}</strong></td>
+          <td class="right">{{ it.unit_price }} FCFA</td>
+          <td class="right">{{ it.qty }}</td>
+          <td class="right"><strong>{{ it.subtotal }} FCFA</strong></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="invoice__totalRow">
+      <div class="invoice__totalLabel">Total</div>
+      <div class="invoice__totalValue">{{ order.total }} FCFA</div>
+    </div>
+
+    <div class="invoice__footer">
+      <div><strong>{{ restaurant_name if restaurant_name else "Les Délices de Diarra" }}</strong></div>
+      <div>Adresse : Thies, quartier SOM, près de la mosquée Ndiakhaté</div>
+      <div style="margin-top:6px;">Merci pour votre commande.</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
+

@@ -1,0 +1,192 @@
+{% extends "admin_base.html" %}
+
+{% block content %}
+<div class="invoice">
+    <div class="invoice__toolbar">
+        <button class="admin-btn" type="button" onclick="window.print()">
+            <i class="fa-solid fa-print"></i> Imprimer
+        </button>
+        {% if wa_invoice_link %}
+        <a class="admin-btn" href="{{ wa_invoice_link }}" target="_blank" rel="noopener">
+            <i class="fa-brands fa-whatsapp"></i> Envoyer facture
+        </a>
+        {% endif %}
+        <a class="admin-btn" href="{{ url_for('admin_orders') }}">Retour</a>
+    </div>
+
+    <div class="invoice__sheet">
+        <div class="invoice__header">
+            <div class="invoice__brand">
+                <div class="invoice__logo">
+                    <img src="{{ url_for('static', filename='images/logo2.jpg') }}"
+                         alt="Logo"
+                         onerror="this.onerror=null;this.src='{{ url_for('static', filename='images/placeholder.svg') }}'">
+                </div>
+                <div>
+                    <div class="invoice__name">{{ restaurant_name if restaurant_name else "Les Délices de Diarra" }}</div>
+                    <div class="invoice__tag">
+                        Facture • Commande<br>
+                        Thies, quartier SOM, près de la mosquée Ndiakhaté
+                        {% if whatsapp_number %}
+                        <br>Commande WhatsApp : <strong>{{ whatsapp_number }}</strong>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="invoice__meta">
+                <div class="invoice__metaRow">
+                    <span class="invoice__metaLabel">N°</span>
+                    <strong>{{ order.public_id if order.public_id else ("#" ~ order.id) }}</strong>
+                </div>
+                <div class="invoice__metaRow">
+                    <span class="invoice__metaLabel">Date</span>
+                    <strong>{{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</strong>
+                </div>
+                <div class="invoice__metaRow">
+                    <span class="invoice__metaLabel">Statut</span>
+                    <strong>
+                        {% if order.status == 'delivered' %}Livrée{% else %}{{ order.status }}{% endif %}
+                    </strong>
+                </div>
+            </div>
+        </div>
+
+        <div class="invoice__section">
+            <div class="invoice__sectionTitle">Client & livraison</div>
+            <div class="invoice__grid">
+                <div class="invoice__block">
+                    <div class="invoice__blockLabel">Client</div>
+                    <div class="invoice__blockValue"><strong>{{ order.customer_name }}</strong></div>
+                    <div class="invoice__blockSub">{{ order.customer_phone }}</div>
+                </div>
+                <div class="invoice__block">
+                    <div class="invoice__blockLabel">Adresse</div>
+                    <div class="invoice__blockValue" style="white-space: pre-wrap;">{{ order.customer_address }}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="invoice__section">
+            <div class="invoice__sectionTitle">Détails</div>
+            <table class="invoice__table">
+                <thead>
+                <tr>
+                    <th>Produit</th>
+                    <th class="right">PU</th>
+                    <th class="right">Qté</th>
+                    <th class="right">Sous-total</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for it in order.items %}
+                <tr>
+                    <td><strong>{{ it.name }}</strong></td>
+                    <td class="right">{{ it.unit_price }} FCFA</td>
+                    <td class="right">{{ it.qty }}</td>
+                    <td class="right"><strong>{{ it.subtotal }} FCFA</strong></td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="invoice__totalRow">
+            <div class="invoice__totalLabel">Total</div>
+            <div class="invoice__totalValue">{{ order.total }} FCFA</div>
+        </div>
+
+        <div class="invoice__footer">
+            <div><strong>{{ restaurant_name if restaurant_name else "Les Délices de Diarra" }}</strong></div>
+            <div>Adresse : Thies, quartier SOM, près de la mosquée Ndiakhaté</div>
+            <div style="margin-top:6px;">Merci pour votre commande.</div>
+        </div>
+    </div>
+</div>
+
+<style>
+.invoice { display: grid; gap: 12px; }
+.invoice__toolbar { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.invoice__sheet {
+  background: rgba(255,255,255,0.98);
+  border: 1px solid rgba(15,23,42,0.10);
+  border-radius: 22px;
+  box-shadow: 0 18px 55px rgba(15,23,42,0.10);
+  padding: 18px;
+}
+
+.invoice__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed rgba(15,23,42,0.14);
+}
+
+.invoice__brand { display: flex; align-items: center; gap: 12px; }
+.invoice__logo {
+  width: 52px; height: 52px; border-radius: 16px; overflow: hidden;
+  border: 1px solid rgba(15,23,42,0.10);
+  background: rgba(246,247,249,0.65);
+  display: grid; place-items: center;
+}
+.invoice__logo img { width: 110%; height: 110%; object-fit: cover; }
+.invoice__name { font-weight: 950; letter-spacing: -0.2px; font-size: 16px; }
+.invoice__tag { color: rgba(71,85,105,0.92); font-weight: 800; font-size: 12px; margin-top: 2px; }
+
+.invoice__meta { display: grid; gap: 8px; min-width: 220px; }
+.invoice__metaRow { display:flex; justify-content: space-between; gap: 10px; }
+.invoice__metaLabel { color: rgba(71,85,105,0.92); font-weight: 850; font-size: 12px; }
+
+.invoice__section { margin-top: 14px; }
+.invoice__sectionTitle { font-weight: 950; margin-bottom: 10px; letter-spacing: -0.2px; }
+.invoice__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.invoice__block {
+  border: 1px solid rgba(15,23,42,0.08);
+  border-radius: 16px;
+  background: rgba(246,247,249,0.55);
+  padding: 12px;
+}
+.invoice__blockLabel { color: rgba(71,85,105,0.92); font-weight: 850; font-size: 12px; }
+.invoice__blockValue { margin-top: 6px; font-weight: 750; }
+.invoice__blockSub { margin-top: 6px; color: rgba(71,85,105,0.92); font-weight: 750; font-size: 12px; }
+
+.invoice__table { width: 100%; border-collapse: collapse; }
+.invoice__table th, .invoice__table td { padding: 10px 10px; border-bottom: 1px solid rgba(15,23,42,0.06); }
+.invoice__table thead th { font-size: 12px; color: rgba(71,85,105,0.92); text-transform: uppercase; letter-spacing: 0.2px; }
+.invoice__table .right { text-align: right; }
+
+.invoice__totalRow {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(249,115,22,0.18);
+  background: linear-gradient(180deg, rgba(249,115,22,0.12), rgba(255,255,255,0.96));
+}
+.invoice__totalLabel { color: rgba(71,85,105,0.92); font-weight: 900; }
+.invoice__totalValue { font-size: 20px; font-weight: 950; letter-spacing: -0.4px; }
+
+.invoice__footer { margin-top: 14px; color: rgba(71,85,105,0.92); font-weight: 750; font-size: 12px; text-align: center; }
+
+@media (max-width: 700px) {
+  .invoice__grid { grid-template-columns: 1fr; }
+  .invoice__meta { width: 100%; min-width: 0; }
+}
+
+@media print {
+  .admin-sidebar, .admin-topbar, .admin-actions, .admin-link-muted, .invoice__toolbar { display:none !important; }
+  .admin-layout { grid-template-columns: 1fr !important; width: 100% !important; margin: 0 !important; }
+  .admin-main { box-shadow:none !important; border:0 !important; }
+  .admin-card { box-shadow:none !important; }
+  .invoice__sheet { box-shadow:none !important; border: 0 !important; border-radius: 0 !important; padding: 0 !important; }
+}
+</style>
+{% endblock %}
+

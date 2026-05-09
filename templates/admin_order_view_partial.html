@@ -47,6 +47,14 @@
                             <input type="hidden" name="status" value="cancelled">
                             <button class="admin-statusBtn is-danger" type="submit">Annuler</button>
                         </form>
+                        {% elif order.status == 'delivered' %}
+                        <a class="admin-statusBtn is-primary" href="{{ url_for('admin_order_receipt', order_id=order.id) }}" target="_blank" rel="noopener">
+                            <i class="fa-solid fa-receipt" style="margin-right:8px;"></i> Reçu
+                        </a>
+                        <form method="POST" action="{{ url_for('admin_order_update_status', order_id=order.id) }}" data-modal-ajax>
+                            <input type="hidden" name="status" value="delivering">
+                            <button class="admin-statusBtn" type="submit">Réouvrir</button>
+                        </form>
                         {% elif order.status == 'cancelled' %}
                         <form method="POST" action="{{ url_for('admin_order_update_status', order_id=order.id) }}" data-modal-ajax>
                             <input type="hidden" name="status" value="new">
@@ -75,12 +83,29 @@
         </div>
     </div>
 
-    {% if order.customer_address %}
-    <div class="admin-view__desc" style="margin-top:12px;">
-        <strong>Adresse de livraison</strong>
-        <div class="admin-muted" style="margin-top:6px; white-space: pre-wrap;">{{ order.customer_address }}</div>
+    <div class="admin-card" style="margin-top:12px;">
+        <div class="admin-card__head">
+            <div>
+                <h2>Informations</h2>
+                <p>Client et livraison</p>
+            </div>
+        </div>
+        <div class="admin-list" style="padding-top: 12px;">
+            <div class="admin-item" style="grid-template-columns: 1fr;">
+                <div class="admin-item__body">
+                    <div class="admin-item__titleRow">
+                        <strong><i class="fa-regular fa-user" style="margin-right:8px;"></i>{{ order.customer_name }}</strong>
+                        <span class="admin-pill"><i class="fa-solid fa-phone" style="margin-right:8px;"></i>{{ order.customer_phone }}</span>
+                    </div>
+                    {% if order.customer_address %}
+                    <div class="admin-item__meta" style="margin-top:10px;">
+                        <span class="admin-muted"><i class="fa-solid fa-location-dot" style="margin-right:8px;"></i>{{ order.customer_address }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
     </div>
-    {% endif %}
 
     {% if order.note %}
     <div class="admin-view__desc">{{ order.note }}</div>
@@ -94,7 +119,7 @@
             </div>
         </div>
         <div class="admin-tableWrap">
-            <table class="admin-table" style="min-width:760px;">
+            <table class="admin-table" style="min-width:0;">
                 <thead>
                 <tr>
                     <th>Produit</th>

@@ -95,6 +95,11 @@
                         <a class="admin-iconBtn" href="{{ url_for('admin_order_view', order_id=o.id) }}" data-modal-open data-modal-title="Commande #{{ o.id }}">
                             <i class="fa-regular fa-eye"></i>
                         </a>
+                        {% if o.status == 'delivered' %}
+                        <a class="admin-iconBtn" href="{{ url_for('admin_order_receipt', order_id=o.id) }}" target="_blank" rel="noopener" aria-label="Reçu" title="Reçu">
+                            <i class="fa-solid fa-receipt"></i>
+                        </a>
+                        {% endif %}
                         {% if o.status == 'new' %}
                         <a class="admin-iconBtn" href="{{ url_for('admin_order_view', order_id=o.id) }}" data-modal-open data-modal-title="Modifier commande #{{ o.id }}" aria-label="Modifier">
                             <i class="fa-regular fa-pen-to-square"></i>

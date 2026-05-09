@@ -8,6 +8,7 @@ from werkzeug.utils import secure_filename
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import or_, text
 from datetime import datetime
+from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
 load_dotenv(dotenv_path=Path(__file__).resolve().with_name(".env"), override=False)
 
@@ -46,6 +47,22 @@ app.config["SQLALCHEMY_DATABASE_URI"] = _db_url or "sqlite:///:memory:"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
+
+_invoice_serializer = URLSafeTimedSerializer(app.secret_key, salt="invoice")
+
+
+def _wa_phone(phone: str) -> str:
+    """
+    wa.me expects digits only (no '+'). We keep digits and drop leading zeros only if user typed local;
+    best practice is to store phones with country code.
+    """
+    p = (phone or "").strip()
+    digits = "".join([ch for ch in p if ch.isdigit()])
+    return digits
+
+
+def _invoice_token(order_id: int) -> str:
+    return _invoice_serializer.dumps({"oid": int(order_id)})
 
 
 class Product(db.Model):
@@ -1307,6 +1324,74 @@ def admin_order_update_status(order_id: int):
         o.status = new_status
         db.session.commit()
     return redirect(request.referrer or url_for("admin_orders"))
+
+
+@app.route("/admin/orders/<int:order_id>/receipt", methods=["GET"])
+def admin_order_receipt(order_id: int):
+    if not session.get("admin"):
+        return redirect(url_for("admin"))
+    if not _db_enabled():
+        return redirect(url_for("admin_orders"))
+
+    _ensure_db_schema()
+    o = db.session.get(Order, order_id)
+    if not o:
+        return redirect(url_for("admin_orders"))
+
+    token = _invoice_token(o.id)
+    public_url = f"{BASE_URL}{url_for('public_invoice', order_id=o.id)}?token={token}"
+    phone_digits = _wa_phone(o.customer_phone)
+    wa_invoice_link = None
+    if phone_digits:
+        msg = f"Bonjour {o.customer_name}, voici votre facture : {public_url}"
+        wa_invoice_link = f"https://wa.me/{phone_digits}?text={quote(msg)}"
+
+    return render_template(
+        "admin_order_receipt.html",
+        title=f"Reçu {o.public_id if o.public_id else ('#' + str(o.id))}",
+        restaurant_name=RESTAURANT_NAME,
+        whatsapp_number=WHATSAPP_NUMBER,
+        public_invoice_url=public_url,
+        wa_invoice_link=wa_invoice_link,
+        active_page="orders",
+        kicker="Ventes",
+        heading="Reçu",
+        order=o,
+    )
+
+
+@app.route("/invoice/<int:order_id>", methods=["GET"])
+def public_invoice(order_id: int):
+    """
+    Public invoice view for customers (token-protected).
+    """
+    token = (request.args.get("token") or "").strip()
+    if not token:
+        return "Not found", 404
+    try:
+        data = _invoice_serializer.loads(token, max_age=60 * 60 * 24 * 30)  # 30 days
+    except SignatureExpired:
+        return "Lien expiré", 410
+    except BadSignature:
+        return "Not found", 404
+
+    if not isinstance(data, dict) or int(data.get("oid") or 0) != int(order_id):
+        return "Not found", 404
+
+    if not _db_enabled():
+        return "Not found", 404
+
+    _ensure_db_schema()
+    o = db.session.get(Order, order_id)
+    if not o:
+        return "Not found", 404
+
+    return render_template(
+        "invoice_public.html",
+        restaurant_name=RESTAURANT_NAME,
+        whatsapp_number=WHATSAPP_NUMBER,
+        order=o,
+    )
 
 
 @app.route("/admin/orders/<int:order_id>/delete", methods=["POST"])

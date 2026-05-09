@@ -38,10 +38,23 @@
 
         <div class="hero-actions">
             <a href="#menu" class="hero-btn primary">Voir le menu</a>
-            <a href="#panier" class="hero-btn secondary">Voir le panier</a>
+            <a href="#panier" class="hero-btn secondary" id="hero-open-checkout">Voir le panier</a>
         </div>
     </div>
 </header>
+
+<div class="mobile-cartbar" id="mobile-cartbar" aria-label="Accès rapide panier">
+    <button type="button" class="mobile-cartbar__btn" id="mobile-open-checkout">
+        <span class="mobile-cartbar__left">
+            <i class="fa-solid fa-basket-shopping"></i>
+            <span>Voir le panier</span>
+        </span>
+        <span class="mobile-cartbar__right">
+            <span class="mobile-cartbar__pill"><span id="mobile-cart-count">0</span></span>
+            <strong><span id="mobile-cart-total">0</span> FCFA</strong>
+        </span>
+    </button>
+</div>
 
 <form method="POST" class="page-container">
 
@@ -132,18 +145,58 @@
                     Total : <strong><span id="total">0</span> FCFA</strong>
                 </div>
 
-                <h3>Informations de livraison</h3>
-
-                <input type="text" name="nom" placeholder="Nom complet" required>
-                <input type="text" name="telephone" placeholder="Téléphone" required>
-                <textarea name="adresse" placeholder="Adresse de livraison" required></textarea>
-
-                <button type="submit" class="validate-btn">
-                    Envoyer sur WhatsApp
+                <button type="button" class="validate-btn" id="open-checkout">
+                    Valider ma commande
                 </button>
             </div>
         </aside>
 
+    </div>
+
+    <div class="site-modal" id="checkout-modal" aria-hidden="true">
+        <div class="site-modal__backdrop" data-checkout-close></div>
+        <div class="site-modal__panel" role="dialog" aria-modal="true" aria-label="Validation commande">
+            <div class="site-modal__head">
+                <strong>Validation de commande</strong>
+                <button class="site-iconBtn" type="button" data-checkout-close aria-label="Fermer">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="site-modal__body">
+                <div class="site-checkoutTop">
+                    <span class="site-pill"><i class="fa-solid fa-basket-shopping"></i> Total: <strong><span id="checkout-total">0</span> FCFA</strong></span>
+                    <span class="site-muted">Vérifie tes infos puis envoie sur WhatsApp.</span>
+                </div>
+
+                <div class="site-error" id="checkout-error" style="display:none;"></div>
+
+                <div class="site-summary">
+                    <div class="site-summary__head">
+                        <strong>Détails de la commande</strong>
+                        <span class="site-muted"><span id="checkout-count">0</span> article(s)</span>
+                    </div>
+                    <div class="site-summary__list" id="checkout-items">
+                        <p class="empty">Aucun article sélectionné.</p>
+                    </div>
+                </div>
+
+                <div class="site-form">
+                    <label class="site-label">Nom complet</label>
+                    <input type="text" name="nom" placeholder="Nom complet" required>
+
+                    <label class="site-label">Téléphone</label>
+                    <input type="text" name="telephone" placeholder="Téléphone" required>
+
+                    <label class="site-label">Adresse de livraison</label>
+                    <textarea name="adresse" placeholder="Adresse de livraison" required></textarea>
+                </div>
+            </div>
+            <div class="site-modal__footer">
+                <button type="submit" class="validate-btn site-cta">
+                    Envoyer sur WhatsApp
+                </button>
+            </div>
+        </div>
     </div>
 </form>
 
@@ -154,8 +207,18 @@ const buttons = document.querySelectorAll(".add-btn");
 const cartItems = document.getElementById("cart-items");
 const totalEl = document.getElementById("total");
 const cartCount = document.getElementById("cart-count");
+const mobileCartCount = document.getElementById("mobile-cart-count");
+const mobileCartTotal = document.getElementById("mobile-cart-total");
 const hiddenInputs = document.querySelectorAll(".hidden-qty");
 const clearBtn = document.getElementById("cart-clear");
+const checkoutModal = document.getElementById("checkout-modal");
+const checkoutTotalEl = document.getElementById("checkout-total");
+const checkoutItemsEl = document.getElementById("checkout-items");
+const checkoutCountEl = document.getElementById("checkout-count");
+const checkoutErrorEl = document.getElementById("checkout-error");
+const openCheckoutBtn = document.getElementById("open-checkout");
+const heroOpenCheckout = document.getElementById("hero-open-checkout");
+const mobileOpenCheckout = document.getElementById("mobile-open-checkout");
 
 try {
   const saved = JSON.parse(localStorage.getItem("ldd_cart") || "{}");
@@ -181,6 +244,7 @@ function updateCart() {
     let total = 0;
     let count = 0;
     let html = "";
+    let checkoutHtml = "";
 
     Object.keys(cart).forEach(name => {
         const item = cart[name];
@@ -188,6 +252,16 @@ function updateCart() {
 
         total += subtotal;
         count += item.qty;
+
+        checkoutHtml += `
+          <div class="site-line">
+            <div class="site-line__left">
+              <strong>${name}</strong>
+              <div class="site-line__meta">${item.price} FCFA × ${item.qty}</div>
+            </div>
+            <div class="site-line__right"><strong>${subtotal} FCFA</strong></div>
+          </div>
+        `;
 
         html += `
             <div class="cart-line">
@@ -214,7 +288,15 @@ function updateCart() {
 
     cartItems.innerHTML = html;
     totalEl.textContent = total;
+    if (checkoutTotalEl) checkoutTotalEl.textContent = total;
     cartCount.textContent = count;
+    if (mobileCartCount) mobileCartCount.textContent = count;
+    if (mobileCartTotal) mobileCartTotal.textContent = total;
+    if (checkoutCountEl) checkoutCountEl.textContent = Object.keys(cart).length;
+
+    if (checkoutItemsEl) {
+      checkoutItemsEl.innerHTML = checkoutHtml || `<p class="empty">Aucun article sélectionné.</p>`;
+    }
 
     hiddenInputs.forEach(input => {
         input.value = cart[input.name] ? cart[input.name].qty : 0;
@@ -226,6 +308,31 @@ function updateCart() {
     });
 
     try { localStorage.setItem("ldd_cart", JSON.stringify(cart)); } catch (e) {}
+}
+
+function openCheckout() {
+  if (!checkoutModal) return;
+  const count = Object.keys(cart).reduce((acc, k) => acc + (cart[k]?.qty || 0), 0);
+  if (!count) {
+    window.location.hash = "#panier";
+    return;
+  }
+  if (checkoutErrorEl) {
+    checkoutErrorEl.style.display = "none";
+    checkoutErrorEl.textContent = "";
+  }
+  checkoutModal.classList.add("is-open");
+  checkoutModal.setAttribute("aria-hidden", "false");
+}
+
+function closeCheckout() {
+  if (!checkoutModal) return;
+  checkoutModal.classList.remove("is-open");
+  checkoutModal.setAttribute("aria-hidden", "true");
+  if (checkoutErrorEl) {
+    checkoutErrorEl.style.display = "none";
+    checkoutErrorEl.textContent = "";
+  }
 }
 
 function increaseItem(name) {
@@ -288,6 +395,46 @@ if (clearBtn) {
     updateCart();
   });
 }
+
+if (openCheckoutBtn) openCheckoutBtn.addEventListener("click", openCheckout);
+if (heroOpenCheckout) heroOpenCheckout.addEventListener("click", (e) => {
+  e.preventDefault();
+  window.location.hash = "#panier";
+  openCheckout();
+});
+if (mobileOpenCheckout) mobileOpenCheckout.addEventListener("click", openCheckout);
+
+document.addEventListener("click", (e) => {
+  const close = e.target.closest("[data-checkout-close]");
+  if (close) { e.preventDefault(); closeCheckout(); }
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && checkoutModal && checkoutModal.classList.contains("is-open")) closeCheckout();
+});
+
+// Show a friendly error if required infos missing
+document.addEventListener("submit", (e) => {
+  if (!checkoutModal || !checkoutModal.classList.contains("is-open")) return;
+  const form = e.target;
+  if (!form || !(form instanceof HTMLFormElement)) return;
+  if (!form.contains(checkoutModal)) return;
+
+  const requiredFields = [
+    form.querySelector("input[name='nom']"),
+    form.querySelector("input[name='telephone']"),
+    form.querySelector("textarea[name='adresse']"),
+  ].filter(Boolean);
+
+  const missing = requiredFields.find(el => !(el.value || "").trim());
+  if (missing) {
+    e.preventDefault();
+    if (checkoutErrorEl) {
+      checkoutErrorEl.textContent = "Veuillez remplir votre nom, téléphone et adresse de livraison avant d’envoyer sur WhatsApp.";
+      checkoutErrorEl.style.display = "";
+    }
+    missing.focus();
+  }
+});
 
 updateCart();
 </script>

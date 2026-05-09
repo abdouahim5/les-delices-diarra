@@ -107,7 +107,12 @@
             </div>
         </div>
         <div class="admin-dashRevenue">
-            <div class="admin-dashRevenue__big">{{ stats.revenue_delivered }} FCFA</div>
+            <div class="admin-dashRevenue__row">
+                <div class="admin-dashRevenue__big" id="revenue-value" data-real="{{ stats.revenue_delivered }} FCFA">{{ stats.revenue_delivered }} FCFA</div>
+                <button type="button" class="admin-iconBtn" id="revenue-toggle" aria-label="Afficher/Masquer chiffre d’affaires" title="Afficher/Masquer">
+                    <i class="fa-solid fa-eye-slash" aria-hidden="true"></i>
+                </button>
+            </div>
             <div class="admin-muted">Astuce: utilise les statuts pour suivre ton flux de vente.</div>
             <div style="margin-top:12px;">
                 <a class="admin-primaryBtn" href="{{ url_for('admin_order_new') }}" data-modal-open data-modal-title="Nouvelle commande">
@@ -118,6 +123,31 @@
         </div>
     </div>
 </div>
+
+<script>
+(() => {
+  const valueEl = document.getElementById("revenue-value");
+  const btn = document.getElementById("revenue-toggle");
+  if (!valueEl || !btn) return;
+  const key = "ldd_hide_revenue";
+  const apply = (hide) => {
+    valueEl.classList.toggle("is-hidden", hide);
+    valueEl.textContent = hide ? "…" : (valueEl.dataset.real || valueEl.textContent);
+    const icon = btn.querySelector("i");
+    if (icon) {
+      icon.className = hide ? "fa-solid fa-eye" : "fa-solid fa-eye-slash";
+    }
+  };
+  let hide = false;
+  try { hide = localStorage.getItem(key) === "1"; } catch (e) { hide = false; }
+  apply(hide);
+  btn.addEventListener("click", () => {
+    hide = !hide;
+    apply(hide);
+    try { localStorage.setItem(key, hide ? "1" : "0"); } catch (e) {}
+  });
+})();
+</script>
 
 {% if recent_orders and recent_orders|length > 0 %}
 <div class="admin-card" style="margin-top:14px;">
