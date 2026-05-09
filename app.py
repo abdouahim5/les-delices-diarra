@@ -219,7 +219,7 @@ def _build_invoice_pdf(order: "Order", restaurant_name: str, whatsapp_number: st
     c.drawString(tx, yb, "Thies, quartier SOM, près de la mosquée Ndiakhaté")
     if whatsapp_number:
         yb -= 12
-        c.drawString(tx, yb, f"Commande WhatsApp : {whatsapp_number}")
+        c.drawString(tx, yb, f"Numéro WhatsApp : {whatsapp_number}")
 
     yy_m = iy_top - 14
     for label, val in (("N°", public_id), ("Date", dt_s), ("Statut", stat_fr)):
