@@ -122,7 +122,7 @@ def _build_invoice_pdf(order: "Order", restaurant_name: str, whatsapp_number: st
     row_h = 22
     thead_h = 18
     total_bar_h = 40
-    footer_h = 28
+    footer_h = 52  # trois lignes centrées (nom, adresse, remerciement)
 
     def page_bg():
         c.setFillColor(C_BG_PAGE)
@@ -332,10 +332,16 @@ def _build_invoice_pdf(order: "Order", restaurant_name: str, whatsapp_number: st
     c.setFont("Helvetica-Bold", 13.5)
     c.drawRightString(ix + usable_w + 4, bar_ll_y + 14, f"{int(order.total)} FCFA")
 
-    c.setFillColor(C_MUTED)
-    c.setFont("Helvetica", 8.5)
-    tw = stringWidth(restaurant_name, "Helvetica", 8.5)
-    c.drawString(card_x + (card_w - tw) / 2, card_y + 10, restaurant_name)
+    cx = card_x + card_w / 2
+    c.setFillColor(C_TEXT)
+    c.setFont("Helvetica-Bold", 9)
+    c.drawCentredString(cx, card_y + 36, restaurant_name)
+    c.drawCentredString(
+        cx,
+        card_y + 24,
+        "Adresse : Thies, quartier SOM, près de la mosquée Ndiakhaté",
+    )
+    c.drawCentredString(cx, card_y + 12, "Merci pour votre commande.")
 
     c.save()
     return buf.getvalue()
