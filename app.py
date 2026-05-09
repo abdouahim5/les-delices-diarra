@@ -12,9 +12,8 @@ from datetime import datetime
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
+from reportlab.lib.utils import ImageReader
 
 load_dotenv(dotenv_path=Path(__file__).resolve().with_name(".env"), override=False)
 
@@ -83,16 +82,28 @@ def _build_invoice_pdf(order: "Order", restaurant_name: str, whatsapp_number: st
     y = height - margin
 
     # Header
+    # Logo (colored) + brand
+    logo_path = Path(__file__).resolve().parent / "static" / "images" / "logo2.jpg"
+    logo_drawn = False
+    try:
+        if logo_path.exists():
+            img = ImageReader(str(logo_path))
+            logo_size = 16 * mm
+            c.drawImage(img, margin, y - logo_size + 2, width=logo_size, height=logo_size, mask="auto", preserveAspectRatio=True, anchor="sw")
+            logo_drawn = True
+    except Exception:
+        logo_drawn = False
+
     c.setFont("Helvetica-Bold", 16)
-    c.drawString(margin, y, restaurant_name)
+    c.drawString(margin + (20 * mm if logo_drawn else 0), y, restaurant_name)
     y -= 6 * mm
 
     c.setFont("Helvetica", 10)
     c.setFillColorRGB(0.28, 0.33, 0.41)  # muted-ish
-    c.drawString(margin, y, "Thies, quartier SOM, près de la mosquée Ndiakhaté")
+    c.drawString(margin + (20 * mm if logo_drawn else 0), y, "Thies, quartier SOM, près de la mosquée Ndiakhaté")
     if whatsapp_number:
         y -= 5 * mm
-        c.drawString(margin, y, f"Commande WhatsApp : {whatsapp_number}")
+        c.drawString(margin + (20 * mm if logo_drawn else 0), y, f"Commande WhatsApp : {whatsapp_number}")
     c.setFillColorRGB(0, 0, 0)
 
     # Meta
