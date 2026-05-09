@@ -9,10 +9,13 @@ from werkzeug.utils import secure_filename
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import or_, text
 from datetime import datetime
+from textwrap import wrap
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
+from reportlab.lib.colors import HexColor
 from reportlab.pdfgen import canvas
+from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.lib.utils import ImageReader
 
 load_dotenv(dotenv_path=Path(__file__).resolve().with_name(".env"), override=False)
@@ -70,110 +73,270 @@ def _invoice_token(order_id: int) -> str:
     return _invoice_serializer.dumps({"oid": int(order_id)})
 
 
+_STATUS_FR = {
+    "new": "Nouvelle",
+    "confirmed": "Confirmée",
+    "preparing": "Préparation",
+    "delivering": "Livraison",
+    "delivered": "Livrée",
+    "cancelled": "Annulée",
+}
+
+
 def _build_invoice_pdf(order: "Order", restaurant_name: str, whatsapp_number: str | None) -> bytes:
     """
-    Lightweight PDF invoice generation (pure-python via reportlab).
+    PDF invoice layout aligned with the web invoice: white rounded card, header + meta, client blocks,
+    details table, peach total bar, footer.
     """
     buf = io.BytesIO()
     c = canvas.Canvas(buf, pagesize=A4)
     width, height = A4
 
-    margin = 18 * mm
-    y = height - margin
+    C_TEXT = HexColor("#0f172a")
+    C_MUTED = HexColor("#64748b")
+    C_BORDER = HexColor("#e5e7eb")
+    C_CARD_BG = HexColor("#f9fafb")
+    C_TOTAL_FILL = HexColor("#fff5f0")
+    C_TOTAL_BORDER = HexColor("#fed7aa")
+    C_BG_PAGE = HexColor("#f3f4f6")
+    C_LINE = HexColor("#e5e7eb")
 
-    # Header
-    # Logo (colored) + brand
-    logo_path = Path(__file__).resolve().parent / "static" / "images" / "logo2.jpg"
+    margin = 14 * mm
+    pad = 10 * mm
+    radius_card = 14
+    radius_box = 8
+
+    card_w = width - 2 * margin
+    card_h = height - 2 * margin
+    card_x = margin
+    card_y = margin
+    ix = card_x + pad
+    usable_w = card_w - 2 * pad
+    iy_top = card_y + card_h - pad
+
+    public_id = order.public_id or f"#{order.id}"
+    dt_s = order.created_at.strftime("%Y-%m-%d %H:%M")
+    stat_fr = _STATUS_FR.get(order.status or "", order.status or "—")
+    items = list(order.items)
+
+    row_h = 22
+    thead_h = 18
+    total_bar_h = 40
+    footer_h = 28
+
+    def page_bg():
+        c.setFillColor(C_BG_PAGE)
+        c.rect(0, 0, width, height, fill=1, stroke=0)
+
+    def dashed_h(x1, x2, y):
+        c.saveState()
+        c.setDash(3, 3)
+        c.setStrokeColor(C_BORDER)
+        c.setLineWidth(0.5)
+        c.line(x1, y, x2, y)
+        c.restoreState()
+
+    def draw_card_frame():
+        c.setFillColor(HexColor("#ffffff"))
+        c.setStrokeColor(C_BORDER)
+        c.setLineWidth(0.75)
+        c.roundRect(card_x, card_y, card_w, card_h, radius_card, fill=1, stroke=1)
+
+    def table_column_xs(inner_left: float, inner_w: float):
+        x_prod = inner_left
+        x_pu = inner_left + inner_w * 0.44
+        x_qt = inner_left + inner_w * 0.66
+        x_st = inner_left + inner_w - 2
+        return x_prod, x_pu, x_qt, x_st
+
+    def draw_table_head(y_baseline: float, inner_left: float, inner_w: float) -> float:
+        """Returns y below header band (start of first row text)."""
+        band_bottom = y_baseline - thead_h + 3
+        c.setFillColor(HexColor("#f9fafb"))
+        c.rect(inner_left - 2, band_bottom, inner_w + 4, thead_h, fill=1, stroke=0)
+        x_prod, x_pu, x_qt, x_st = table_column_xs(inner_left, inner_w)
+        c.setFont("Helvetica-Bold", 7.5)
+        c.setFillColor(C_MUTED)
+        c.drawString(x_prod, y_baseline - 11, "PRODUIT")
+        c.drawRightString(x_pu, y_baseline - 11, "PU")
+        c.drawRightString(x_qt, y_baseline - 11, "QTÉ")
+        c.drawRightString(x_st, y_baseline - 11, "SOUS-TOTAL")
+        c.setStrokeColor(C_LINE)
+        c.setLineWidth(0.5)
+        c.line(inner_left - 2, band_bottom, inner_left + inner_w + 2, band_bottom)
+        return band_bottom - 8
+
+    def draw_item_row(y_baseline: float, it, inner_left: float, inner_w: float) -> None:
+        x_prod, x_pu, x_qt, x_st = table_column_xs(inner_left, inner_w)
+        c.setStrokeColor(C_LINE)
+        c.line(inner_left - 2, y_baseline + 16, inner_left + inner_w + 2, y_baseline + 16)
+        name = (it.name or "")[:52]
+        c.setFillColor(C_TEXT)
+        c.setFont("Helvetica-Bold", 9)
+        c.drawString(x_prod, y_baseline, name)
+        c.setFont("Helvetica", 9)
+        c.drawRightString(x_pu, y_baseline, f"{int(it.unit_price)} FCFA")
+        c.drawRightString(x_qt, y_baseline, str(int(it.qty)))
+        c.setFont("Helvetica-Bold", 9)
+        c.drawRightString(x_st, y_baseline, f"{int(it.subtotal)} FCFA")
+
+    page_bg()
+    draw_card_frame()
+
+    # --- Header: logo + brand (left), meta block (right) ---
+    header_band = max(42 * mm, 38 * mm)
+    header_bottom_y = iy_top - header_band
+
+    logo_size = 15 * mm
+    logo_y = iy_top - logo_size - 4
+    logo_x = ix
     logo_drawn = False
+    logo_path = Path(__file__).resolve().parent / "static" / "images" / "logo2.jpg"
     try:
         if logo_path.exists():
             img = ImageReader(str(logo_path))
-            logo_size = 16 * mm
-            c.drawImage(img, margin, y - logo_size + 2, width=logo_size, height=logo_size, mask="auto", preserveAspectRatio=True, anchor="sw")
+            c.setFillColor(HexColor("#ffffff"))
+            c.setStrokeColor(C_BORDER)
+            c.roundRect(logo_x, logo_y, logo_size, logo_size, 6, fill=1, stroke=1)
+            c.drawImage(
+                img, logo_x + 2, logo_y + 2, width=logo_size - 4, height=logo_size - 4,
+                mask="auto", preserveAspectRatio=True,
+            )
             logo_drawn = True
     except Exception:
         logo_drawn = False
 
-    c.setFont("Helvetica-Bold", 16)
-    c.drawString(margin + (20 * mm if logo_drawn else 0), y, restaurant_name)
-    y -= 6 * mm
-
-    c.setFont("Helvetica", 10)
-    c.setFillColorRGB(0.28, 0.33, 0.41)  # muted-ish
-    c.drawString(margin + (20 * mm if logo_drawn else 0), y, "Thies, quartier SOM, près de la mosquée Ndiakhaté")
+    tx = ix + (logo_size + 9 if logo_drawn else 0)
+    c.setFillColor(C_TEXT)
+    c.setFont("Helvetica-Bold", 13)
+    c.drawString(tx, iy_top - 16, restaurant_name[:55])
+    c.setFont("Helvetica", 8.5)
+    c.setFillColor(C_MUTED)
+    yb = iy_top - 30
+    c.drawString(tx, yb, "Facture • Commande")
+    yb -= 12
+    c.setFont("Helvetica", 9)
+    c.drawString(tx, yb, "Thies, quartier SOM, près de la mosquée Ndiakhaté")
     if whatsapp_number:
-        y -= 5 * mm
-        c.drawString(margin + (20 * mm if logo_drawn else 0), y, f"Commande WhatsApp : {whatsapp_number}")
-    c.setFillColorRGB(0, 0, 0)
+        yb -= 12
+        c.drawString(tx, yb, f"Commande WhatsApp : {whatsapp_number}")
 
-    # Meta
-    y -= 10 * mm
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(margin, y, "FACTURE")
-    y -= 6 * mm
-    c.setFont("Helvetica", 10)
-    public_id = order.public_id or f"#{order.id}"
-    c.drawString(margin, y, f"N°: {public_id}")
-    c.drawRightString(width - margin, y, f"Date: {order.created_at.strftime('%Y-%m-%d %H:%M')}")
+    yy_m = iy_top - 14
+    for label, val in (("N°", public_id), ("Date", dt_s), ("Statut", stat_fr)):
+        c.setFont("Helvetica", 8.5)
+        lw = stringWidth(label, "Helvetica", 8.5)
+        c.setFont("Helvetica-Bold", 9)
+        vw = stringWidth(val, "Helvetica-Bold", 9)
+        gap = 8
+        block = lw + gap + vw
+        x_start = ix + usable_w - block - 4
+        c.setFillColor(C_MUTED)
+        c.setFont("Helvetica", 8.5)
+        c.drawString(x_start, yy_m, label)
+        c.setFillColor(C_TEXT)
+        c.setFont("Helvetica-Bold", 9)
+        c.drawString(x_start + lw + gap, yy_m, val)
+        yy_m -= 16
 
-    # Client
-    y -= 10 * mm
+    dashed_h(ix, ix + usable_w, header_bottom_y)
+
+    # --- Client & livraison ---
+    y = header_bottom_y - 18
+    c.setFillColor(C_TEXT)
     c.setFont("Helvetica-Bold", 11)
-    c.drawString(margin, y, "Client & livraison")
-    y -= 6 * mm
-    c.setFont("Helvetica", 10)
-    c.drawString(margin, y, f"{order.customer_name} • {order.customer_phone}")
-    y -= 5 * mm
-    addr = (order.customer_address or "").strip()
-    if addr:
-        text = c.beginText(margin, y)
-        text.setFont("Helvetica", 10)
-        text.setFillColorRGB(0.28, 0.33, 0.41)
-        for line in addr.splitlines():
-            text.textLine(line)
-        c.drawText(text)
-        c.setFillColorRGB(0, 0, 0)
-        y = text.getY() - 2 * mm
+    c.drawString(ix, y, "Client & livraison")
 
-    # Table header
-    y -= 8 * mm
+    box_h = 34 * mm
+    box_gap = 5 * mm
+    box_w = (usable_w - box_gap) / 2
+    box_top_baseline = y - 14
+    box_ll_y = box_top_baseline - box_h
+
+    addr = (order.customer_address or "").strip()[:400]
+    c.setFillColor(C_CARD_BG)
+    c.setStrokeColor(HexColor("#e2e8f0"))
+    c.roundRect(ix, box_ll_y, box_w, box_h, radius_box, fill=1, stroke=1)
+    c.roundRect(ix + box_w + box_gap, box_ll_y, box_w, box_h, radius_box, fill=1, stroke=1)
+
+    # Text inside boxes (from top of box downward)
+    inner_top = box_ll_y + box_h
+    c.setFont("Helvetica-Bold", 7.5)
+    c.setFillColor(C_MUTED)
+    c.drawString(ix + 10, inner_top - 12, "Client")
     c.setFont("Helvetica-Bold", 10)
-    c.drawString(margin, y, "Produit")
-    c.drawRightString(width - margin - 70 * mm, y, "PU")
-    c.drawRightString(width - margin - 40 * mm, y, "Qté")
-    c.drawRightString(width - margin, y, "Sous-total")
-    y -= 3 * mm
-    c.line(margin, y, width - margin, y)
+    c.setFillColor(C_TEXT)
+    c.drawString(ix + 10, inner_top - 26, (order.customer_name or "")[:40])
+    c.setFont("Helvetica", 9)
+    c.setFillColor(C_MUTED)
+    c.drawString(ix + 10, inner_top - 40, (order.customer_phone or "")[:42])
 
-    # Items
-    c.setFont("Helvetica", 10)
-    y -= 6 * mm
-    for it in order.items:
-        if y < margin + 35 * mm:
+    rx = ix + box_w + box_gap
+    c.setFont("Helvetica-Bold", 7.5)
+    c.setFillColor(C_MUTED)
+    c.drawString(rx + 10, inner_top - 12, "Adresse")
+    c.setFont("Helvetica-Bold", 10)
+    c.setFillColor(C_TEXT)
+    adr_lines: list[str] = []
+    if addr:
+        for line in addr.splitlines():
+            adr_lines.extend(wrap(line.strip() or "", width=34)[:5])
+        if not adr_lines:
+            adr_lines = ["—"]
+    else:
+        adr_lines = ["—"]
+    ay = inner_top - 26
+    for ln in adr_lines[:4]:
+        c.drawString(rx + 10, ay, ln[:44])
+        ay -= 12
+
+    # --- Détails ---
+    y_detail_title = box_ll_y - 20
+    c.setFont("Helvetica-Bold", 11)
+    c.setFillColor(C_TEXT)
+    c.drawString(ix, y_detail_title, "Détails")
+
+    inner_left = ix + 8
+    inner_w = usable_w - 16
+    ly = draw_table_head(y_detail_title - 14, inner_left, inner_w)
+
+    reserve_bottom = card_y + footer_h + total_bar_h + 50
+    item_idx = 0
+
+    while item_idx < len(items):
+        it = items[item_idx]
+        if ly - row_h < reserve_bottom:
             c.showPage()
-            y = height - margin
+            page_bg()
+            draw_card_frame()
+            c.setFillColor(C_TEXT)
             c.setFont("Helvetica-Bold", 10)
-            c.drawString(margin, y, "Produit")
-            c.drawRightString(width - margin - 70 * mm, y, "PU")
-            c.drawRightString(width - margin - 40 * mm, y, "Qté")
-            c.drawRightString(width - margin, y, "Sous-total")
-            y -= 3 * mm
-            c.line(margin, y, width - margin, y)
-            c.setFont("Helvetica", 10)
-            y -= 6 * mm
+            title = f"Détails (suite) — {public_id}"
+            c.drawString(ix, iy_top - 20, title)
+            ly = iy_top - 44
+            ly = draw_table_head(ly, inner_left, inner_w)
+            reserve_bottom = card_y + footer_h + total_bar_h + 50
+            continue
+        draw_item_row(ly, it, inner_left, inner_w)
+        ly -= row_h
+        item_idx += 1
 
-        c.drawString(margin, y, (it.name or "")[:60])
-        c.drawRightString(width - margin - 70 * mm, y, f"{int(it.unit_price)} FCFA")
-        c.drawRightString(width - margin - 40 * mm, y, str(int(it.qty)))
-        c.drawRightString(width - margin, y, f"{int(it.subtotal)} FCFA")
-        y -= 6 * mm
+    gap_above_total = 16
+    bar_ll_y = ly - gap_above_total - total_bar_h
 
-    # Total
-    y -= 4 * mm
-    c.setFont("Helvetica-Bold", 12)
-    c.drawRightString(width - margin, y, f"TOTAL: {int(order.total)} FCFA")
+    c.setStrokeColor(C_TOTAL_BORDER)
+    c.setFillColor(C_TOTAL_FILL)
+    c.roundRect(ix - 6, bar_ll_y, usable_w + 12, total_bar_h, radius_box + 3, fill=1, stroke=1)
+    c.setFillColor(C_TEXT)
+    c.setFont("Helvetica-Bold", 10)
+    c.drawString(ix + 6, bar_ll_y + 13, "Total")
+    c.setFont("Helvetica-Bold", 13.5)
+    c.drawRightString(ix + usable_w + 4, bar_ll_y + 14, f"{int(order.total)} FCFA")
 
-    c.showPage()
+    c.setFillColor(C_MUTED)
+    c.setFont("Helvetica", 8.5)
+    tw = stringWidth(restaurant_name, "Helvetica", 8.5)
+    c.drawString(card_x + (card_w - tw) / 2, card_y + 10, restaurant_name)
+
     c.save()
     return buf.getvalue()
 
