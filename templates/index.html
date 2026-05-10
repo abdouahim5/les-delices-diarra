@@ -412,12 +412,14 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && checkoutModal && checkoutModal.classList.contains("is-open")) closeCheckout();
 });
 
-// Show a friendly error if required infos missing
-document.addEventListener("submit", (e) => {
+// Validation + envoi AJAX : on vide le panier seulement après succès serveur, puis redirection WhatsApp
+document.addEventListener("submit", async (e) => {
   if (!checkoutModal || !checkoutModal.classList.contains("is-open")) return;
   const form = e.target;
   if (!form || !(form instanceof HTMLFormElement)) return;
   if (!form.contains(checkoutModal)) return;
+
+  e.preventDefault();
 
   const requiredFields = [
     form.querySelector("input[name='nom']"),
@@ -427,12 +429,69 @@ document.addEventListener("submit", (e) => {
 
   const missing = requiredFields.find(el => !(el.value || "").trim());
   if (missing) {
-    e.preventDefault();
     if (checkoutErrorEl) {
       checkoutErrorEl.textContent = "Veuillez remplir votre nom, téléphone et adresse de livraison avant d’envoyer sur WhatsApp.";
       checkoutErrorEl.style.display = "";
     }
     missing.focus();
+    return;
+  }
+
+  const itemCount = Object.keys(cart).reduce((acc, k) => acc + (cart[k]?.qty || 0), 0);
+  if (itemCount <= 0) {
+    if (checkoutErrorEl) {
+      checkoutErrorEl.textContent = "Votre panier est vide. Ajoutez au moins un produit.";
+      checkoutErrorEl.style.display = "";
+    }
+    return;
+  }
+
+  const submitBtn = form.querySelector(".site-modal .validate-btn");
+  const prevLabel = submitBtn ? submitBtn.textContent : "";
+
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Envoi…";
+  }
+
+  try {
+    const fd = new FormData(form);
+    const res = await fetch(form.action || "/", {
+      method: "POST",
+      body: fd,
+      headers: { "X-Checkout": "1" },
+    });
+
+    let data = {};
+    try {
+      data = await res.json();
+    } catch (parseErr) {
+      data = {};
+    }
+
+    if (!res.ok || !data.ok || !data.whatsapp) {
+      if (checkoutErrorEl) {
+        checkoutErrorEl.textContent = (data && data.error) ? data.error : "Une erreur est survenue. Réessayez.";
+        checkoutErrorEl.style.display = "";
+      }
+      return;
+    }
+
+    cart = {};
+    try { localStorage.removeItem("ldd_cart"); } catch (err) {}
+    updateCart();
+    closeCheckout();
+    window.location.href = data.whatsapp;
+  } catch (networkErr) {
+    if (checkoutErrorEl) {
+      checkoutErrorEl.textContent = "Problème réseau. Vérifiez votre connexion.";
+      checkoutErrorEl.style.display = "";
+    }
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = prevLabel;
+    }
   }
 });
 

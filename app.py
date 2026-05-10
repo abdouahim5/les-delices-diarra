@@ -606,6 +606,7 @@ def home():
     order_summary = []
 
     if request.method == "POST":
+        wants_json = request.headers.get("X-Checkout") == "1"
         nom = request.form.get("nom", "").strip()
         telephone = request.form.get("telephone", "").strip()
         adresse = request.form.get("adresse", "").strip()
@@ -717,7 +718,12 @@ def home():
                         ))
                     db.session.commit()
 
+            if wants_json:
+                return jsonify({"ok": True, "whatsapp": whatsapp_link})
             return redirect(whatsapp_link)
+
+        if wants_json:
+            return jsonify({"ok": False, "error": error or "Impossible d’envoyer la commande."}), 400
 
     return render_template(
         "index.html",
