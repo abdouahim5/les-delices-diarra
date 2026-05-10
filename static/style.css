@@ -2202,18 +2202,22 @@ body.admin-shell {
     .invoice__meta { width: 100%; min-width: 0; }
 }
 .invoice__table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-.invoice__table th, .invoice__table td { padding: 12px 10px; vertical-align: middle; }
+.invoice__table th, .invoice__table td { padding: 14px 12px; vertical-align: middle; }
 .invoice__table thead th {
-    font-size: 11px;
+    font-size: 10.5px;
     font-weight: 600;
     color: #64748b;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
-    background: #f1f5f9;
+    letter-spacing: 0.08em;
+    background: #fff;
     border-bottom: 1px solid #e5e7eb;
+    padding-top: 4px;
+    padding-bottom: 12px;
 }
-.invoice__table tbody tr { border-bottom: 1px solid #f1f5f9; }
-.invoice__table tbody tr:last-child { border-bottom: none; }
+.invoice__table tbody tr { border-bottom: 1px solid #e5e7eb; }
+.invoice__table tbody td { color: #0f172a; font-size: 14px; }
+.invoice__table tbody td.invoice__tdNum { font-weight: 500; }
+.invoice__table tbody td.invoice__tdNum strong { font-weight: 800; }
 .invoice__table th:nth-child(1), .invoice__table td:nth-child(1) { width: 52%; }
 .invoice__table th:nth-child(2), .invoice__table td:nth-child(2) { width: 18%; }
 .invoice__table th:nth-child(3), .invoice__table td:nth-child(3) { width: 10%; }
