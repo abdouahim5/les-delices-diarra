@@ -56,7 +56,7 @@
     </button>
 </div>
 
-<form method="POST" class="page-container">
+<form method="POST" class="page-container" action="{{ url_for('home') }}">
 
     {% if error %}
     <div class="alert-error">{{ error }}</div>
@@ -224,6 +224,16 @@ try {
   const saved = JSON.parse(localStorage.getItem("ldd_cart") || "{}");
   if (saved && typeof saved === "object") cart = saved;
 } catch (e) {}
+
+// Après retour arrière (bfcache), resynchroniser le panier avec localStorage
+window.addEventListener("pageshow", (ev) => {
+  if (!ev.persisted) return;
+  try {
+    const saved = JSON.parse(localStorage.getItem("ldd_cart") || "{}");
+    if (saved && typeof saved === "object") cart = saved;
+    updateCart();
+  } catch (e) {}
+});
 
 buttons.forEach(btn => {
     btn.addEventListener("click", () => {
@@ -412,12 +422,16 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && checkoutModal && checkoutModal.classList.contains("is-open")) closeCheckout();
 });
 
-// Validation + envoi AJAX : on vide le panier seulement après succès serveur, puis redirection WhatsApp
+// Envoi commande en AJAX : synchroniser les champs cachés, puis vider le panier seulement si le serveur accepte
 document.addEventListener("submit", async (e) => {
-  if (!checkoutModal || !checkoutModal.classList.contains("is-open")) return;
   const form = e.target;
-  if (!form || !(form instanceof HTMLFormElement)) return;
-  if (!form.contains(checkoutModal)) return;
+  if (!(form instanceof HTMLFormElement) || !form.classList.contains("page-container")) return;
+
+  const submitter = e.submitter;
+  const fromCheckout =
+    (submitter && submitter.closest && submitter.closest("#checkout-modal")) ||
+    (checkoutModal && checkoutModal.classList.contains("is-open") && form.contains(checkoutModal));
+  if (!fromCheckout) return;
 
   e.preventDefault();
 
@@ -437,6 +451,8 @@ document.addEventListener("submit", async (e) => {
     return;
   }
 
+  updateCart();
+
   const itemCount = Object.keys(cart).reduce((acc, k) => acc + (cart[k]?.qty || 0), 0);
   if (itemCount <= 0) {
     if (checkoutErrorEl) {
@@ -446,7 +462,9 @@ document.addEventListener("submit", async (e) => {
     return;
   }
 
-  const submitBtn = form.querySelector(".site-modal .validate-btn");
+  const submitBtn = submitter && submitter.matches(".validate-btn.site-cta")
+    ? submitter
+    : form.querySelector("#checkout-modal .validate-btn.site-cta");
   const prevLabel = submitBtn ? submitBtn.textContent : "";
 
   if (submitBtn) {
@@ -456,32 +474,42 @@ document.addEventListener("submit", async (e) => {
 
   try {
     const fd = new FormData(form);
-    const res = await fetch(form.action || "/", {
+    fd.set("checkout", "1");
+
+    const res = await fetch(form.getAttribute("action") || "/", {
       method: "POST",
       body: fd,
-      headers: { "X-Checkout": "1" },
+      headers: { "X-Checkout": "1", Accept: "application/json" },
+      credentials: "same-origin",
     });
 
+    const ct = (res.headers.get("content-type") || "").toLowerCase();
     let data = {};
-    try {
-      data = await res.json();
-    } catch (parseErr) {
-      data = {};
+    if (ct.includes("application/json")) {
+      try {
+        data = await res.json();
+      } catch (parseErr) {
+        data = {};
+      }
     }
 
     if (!res.ok || !data.ok || !data.whatsapp) {
       if (checkoutErrorEl) {
-        checkoutErrorEl.textContent = (data && data.error) ? data.error : "Une erreur est survenue. Réessayez.";
+        checkoutErrorEl.textContent =
+          (data && data.error) ? data.error : "Une erreur est survenue. Réessayez.";
         checkoutErrorEl.style.display = "";
       }
       return;
     }
 
     cart = {};
-    try { localStorage.removeItem("ldd_cart"); } catch (err) {}
+    try {
+      localStorage.removeItem("ldd_cart");
+    } catch (err) {}
     updateCart();
     closeCheckout();
-    window.location.href = data.whatsapp;
+
+    window.location.assign(data.whatsapp);
   } catch (networkErr) {
     if (checkoutErrorEl) {
       checkoutErrorEl.textContent = "Problème réseau. Vérifiez votre connexion.";

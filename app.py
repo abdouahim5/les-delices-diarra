@@ -606,7 +606,10 @@ def home():
     order_summary = []
 
     if request.method == "POST":
-        wants_json = request.headers.get("X-Checkout") == "1"
+        wants_json = (
+            request.headers.get("X-Checkout") == "1"
+            or (request.form.get("checkout") or "").strip() == "1"
+        )
         nom = request.form.get("nom", "").strip()
         telephone = request.form.get("telephone", "").strip()
         adresse = request.form.get("adresse", "").strip()
